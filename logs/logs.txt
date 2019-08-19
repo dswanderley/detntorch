@@ -1,0 +1,1 @@
+Logs are saved in subfolders inside this folder.

@@ -1,0 +1,1 @@
+Folder to store the datasets. Each dataset requires a folder with subfolders gt and im.
