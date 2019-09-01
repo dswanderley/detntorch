@@ -28,7 +28,7 @@ class OvaryDataset(Dataset):
     """
 
     def __init__(self, im_dir='im', gt_dir='gt',
-            one_hot=True, clahe=False, imap=False,
+            one_hot=True, clahe=False,
             ovary_inst=False, transform=None, out_tuple=False):
         """
         Args:
@@ -36,7 +36,6 @@ class OvaryDataset(Dataset):
             gt_dir (string): Directory with all the masks, with the same name of
                 the original images.
             one_hot (bool): Optional output encoding one-hot-encoding or gray levels.
-            imap (bool, optional): Optional interactive maps.
             ovary_inst(bool, optional): Define if ovary/stroma needs to be encoded
                 as an instance.
             transform (callable, optional): Optional transform to be applied
@@ -47,10 +46,29 @@ class OvaryDataset(Dataset):
         self.im_dir = im_dir
         self.gt_dir = gt_dir
         self.transform = transform
-        self.one_hot = one_hot
         self.clahe = clahe
+        self.one_hot = one_hot
         self.ovary_instance = ovary_inst
         self.out_tuple = out_tuple
+
+         # Output encod accepts two types: one-hot-encoding or gray scale levels
+        # Variable encods contains a list of each data encoding:
+        # 1) Full GT mask, 2) Ovary mask, 3) Follicle mask
+        if type(self.one_hot) is list:      # When a list is provided
+            self.encods = []
+            for i in range(4):
+                if i > len(one_hot) - 1: # If provided list is lower than expected
+                    self.encods.append(True)
+                else:
+                    self.encods.append(self.one_hot[i])
+        elif type(self.one_hot) is bool:    # When a single bool is provided
+            self.encods = [self.one_hot, self.one_hot, self.one_hot, self.one_hot]
+        else:
+            self.encods = [True, True, True, True]
+
+        if self.out_tuple is False:
+            self.encods[3] = False
+
 
         ldir_im = set(x for x in os.listdir(self.im_dir))
         ldir_gt = set(x for x in os.listdir(self.gt_dir))
@@ -74,24 +92,6 @@ class OvaryDataset(Dataset):
                 @sample (dict): im_name, image, gt_mask, ovary_mask,
                     follicle_mask, follicle_instances, num_follicles.
         """
-
-        '''
-            Output encoding preparation
-        '''
-        # Output encod accepts two types: one-hot-encoding or gray scale levels
-        # Variable encods contains a list of each data encoding:
-        # 1) Full GT mask, 2) Ovary mask, 3) Follicle mask
-        if type(self.one_hot) is list:      # When a list is provided
-            encods = []
-            for i in range(4):
-                if i > len(self.one_hot) - 1: # If provided list is lower than expected
-                    encods.append(True)
-                else:
-                    encods.append(self.one_hot[i])
-        elif type(self.one_hot) is bool:    # When a single bool is provided
-            encods = [self.one_hot, self.one_hot, self.one_hot, self.one_hot]
-        else:
-            encods = [True, True, True, True]
 
         '''
             Load images
@@ -140,7 +140,7 @@ class OvaryDataset(Dataset):
         mask_follicle[gt_np > t2] = 1.
 
         # Main mask output
-        if encods[0]:
+        if self.encods[0]:
             # Multi mask - background (R = 1) / ovary (G = 1) / follicle (B = 1)
             multi_mask = np.zeros((gt_np.shape[0], gt_np.shape[1], 3))
             multi_mask[...,0] = mask_bkgound
@@ -159,7 +159,7 @@ class OvaryDataset(Dataset):
         mask_ovary[gt_np >= t1] = 1.
 
         # Ovarian auxiliary mask output
-        if encods[1]:
+        if self.encods[1]:
             # Multi mask - background (R = 1) / ovary (G = 1)
             ov_mask = np.zeros((gt_np.shape[0], gt_np.shape[1], 2))
             ov_mask[...,0] = mask_bkgound
@@ -180,7 +180,7 @@ class OvaryDataset(Dataset):
         mask_edges = f_dilate - f_erode
 
         # Ovarian auxiliary mask output
-        if encods[2]:
+        if self.encods[2]:
             # Multi mask - background (R = 1) / follicle (G = 1)
             # follicle mask
             fol_mask = np.zeros((gt_np.shape[0], gt_np.shape[1], 2))
@@ -213,10 +213,10 @@ class OvaryDataset(Dataset):
             aux = np.zeros((mask_inst.shape[0], mask_inst.shape[1]))
             aux[mask_inst == i+1] = 1
             masks[...,i] = aux
-        if encods[3]:
-            inst_mask = masks
-        else:
-            inst_mask = mask_inst.astype(np.float32)
+        #if encods[3]:
+        #    inst_mask = masks
+        #else:
+        inst_mask = mask_inst.astype(np.float32)
 
         '''
             Instance Bouding Boxes
@@ -338,7 +338,7 @@ if __name__ == '__main__':
     # pre-set
     dataset = OvaryDataset(im_dir='../datasets/ovarian/im/test/',
                            gt_dir='../datasets/ovarian/gt/test/',
-                           imap=False, clahe=False, transform=False,
+                           clahe=False, transform=False,
                            ovary_inst=True,
                            out_tuple=True)
     # Loader
@@ -348,9 +348,11 @@ if __name__ == '__main__':
     for _, sample in enumerate(data_loader):
             # Load data
 
+            '''
             images = list(s['image'] for s in sample)
 
             targets = [s['targets'] for s in sample]
+            '''
 
             print('')
 
