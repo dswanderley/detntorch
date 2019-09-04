@@ -6,6 +6,11 @@ import torch.nn as nn
 import numpy as np
 
 
+class EmptyLayer(nn.Module):
+    def __init__(self):
+        super(EmptyLayer, self).__init__()
+
+
 def parse_cfg(cfgfile):
     """
     Takes a configuration file
@@ -37,7 +42,7 @@ def parse_cfg(cfgfile):
     return blocks
 
 
-def read_conv_layer(block, prev_filters, index=0):
+def get_conv_layer(block, prev_filters, index=0):
     '''
     Get a convolutional block from configuration file and returns a pytorch layer.
     '''
@@ -52,7 +57,7 @@ def read_conv_layer(block, prev_filters, index=0):
         batch_normalize = 0
         bias = True
 
-    filters= int(block["filters"])
+    filters = int(block["filters"])
     padding = int(block["pad"])
     kernel_size = int(block["size"])
     stride = int(block["stride"])
@@ -77,10 +82,10 @@ def read_conv_layer(block, prev_filters, index=0):
         activn = nn.LeakyReLU(0.1, inplace = True)
         conv_module.add_module("leaky_{0}".format(index), activn)
 
-    return conv_module
+    return conv_module, filters
 
 
-def read_upsampling_layer(block, index=0):
+def get_upsampling_layer(block, index=0):
     '''
     Get a upsampling block from configuration file and returns a pytorch layer.
     '''
@@ -92,6 +97,43 @@ def read_upsampling_layer(block, index=0):
     up_module.add_module("upsample_{}".format(index), upsample)
 
     return up_module
+
+
+def get_route_layer(block, index=0):
+    '''
+    Get a route block from configuration file and returns a pytorch layer.
+    '''
+    route_module = nn.Sequential()
+
+    block["layers"] = block["layers"].split(',')
+    #Start  of a route
+    start = int(block["layers"][0])
+    #end, if there exists one.
+    try:
+        end = int(block["layers"][1])
+    except:
+        end = 0
+    #Positive anotation
+    if start > 0:
+        start = start - index
+    if end > 0:
+        end = end - index
+    # Create empty layer for route layer
+    route = EmptyLayer()
+    route_module.add_module("route_{0}".format(index), route)
+
+    return route_module, start, end
+
+
+def get_shortcut_layer(block, index=0):
+    '''
+    Get a Shortcut block from configuration file and returns a pytorch layer.
+    '''
+    module = nn.Sequential()
+    shortcut = EmptyLayer()
+    module.add_module("shortcut_{}".format(index), shortcut)
+
+    return module
 
 
 def create_modules(blocks):
@@ -107,15 +149,31 @@ def create_modules(blocks):
     for index, x in enumerate(blocks[1:]):
         module = None
 
+        if (x["type"] == "net"):
+            continue
+
         # Conv layer
         if (x["type"] == "convolutional"):
-            module = read_conv_layer(x, prev_filters, index=index)
+            module, filters = get_conv_layer(x, prev_filters, index=index)
         # Upsampling layer
         elif (x["type"] == "upsample"):
-            module = read_upsampling_layer(x, index=index)
+            module = get_upsampling_layer(x, index=index)
+        # Route layer
+        elif (x["type"] == "route"):
+            module, start, end = get_route_layer(x, index=index)
+            if end < 0:
+                filters = output_filters[index + start] + output_filters[index + end]
+            else:
+                filters = output_filters[index + start]
+        # Shortcut or skip connection
+        elif x["type"] == "shortcut":
+            module = get_shortcut_layer(x, index=index)
 
+        # Add to module list
         if type(module) != None:
             module_list.append(module)
+            prev_filters = filters
+            output_filters.append(filters)
 
     print('')
 
