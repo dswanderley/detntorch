@@ -11,6 +11,12 @@ class EmptyLayer(nn.Module):
         super(EmptyLayer, self).__init__()
 
 
+class DetectionLayer(nn.Module):
+    def __init__(self, anchors):
+        super(DetectionLayer, self).__init__()
+        self.anchors = anchors
+
+
 def parse_cfg(cfgfile):
     """
     Takes a configuration file
@@ -136,6 +142,26 @@ def get_shortcut_layer(block, index=0):
     return module
 
 
+def get_yolo_layer(block, index=0):
+    '''
+    Get a YOLO block from configuration file and returns a pytorch layer.
+    '''
+    dtn_module = nn.Sequential()
+    # Read mask data
+    mask = block["mask"].split(",")
+    mask = [int(x) for x in mask]
+    # Read anchors data
+    anchors = block["anchors"].split(",")
+    anchors = [int(a) for a in anchors]
+    anchors = [(anchors[i], anchors[i+1]) for i in range(0, len(anchors),2)]
+    anchors = [anchors[i] for i in mask]
+    # init detection layer class
+    detection = DetectionLayer(anchors)
+    dtn_module.add_module("Detection_{}".format(index), detection)
+
+    return dtn_module
+
+
 def create_modules(blocks):
     '''
     The create_modules function takes a list blocks returned by the parse_cfg function.
@@ -168,6 +194,9 @@ def create_modules(blocks):
         # Shortcut or skip connection
         elif x["type"] == "shortcut":
             module = get_shortcut_layer(x, index=index)
+        # Yolo / detection layer
+        elif x["type"] == "yolo":
+            module = get_yolo_layer(x, index=index)
 
         # Add to module list
         if type(module) != None:
@@ -175,7 +204,7 @@ def create_modules(blocks):
             prev_filters = filters
             output_filters.append(filters)
 
-    print('')
+    return (net_info, module_list)
 
 
 
@@ -184,6 +213,8 @@ if __name__ == '__main__':
 
     cfgfile = "./configs/yolov3.cfg"
     blocks = parse_cfg(cfgfile)
-    create_modules(blocks)
+    #create_modules(blocks)
+    print(create_modules(blocks))
+
 
     print('')
