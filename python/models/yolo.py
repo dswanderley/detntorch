@@ -37,9 +37,9 @@ def parse_cfg(cfgfile):
     return blocks
 
 
-def read_conv_block(block, prev_filters, index=0):
+def read_conv_layer(block, prev_filters, index=0):
     '''
-
+    Get a convolutional block from configuration file and returns a pytorch layer.
     '''
     conv_module = nn.Sequential()
 
@@ -80,6 +80,20 @@ def read_conv_block(block, prev_filters, index=0):
     return conv_module
 
 
+def read_upsampling_layer(block, index=0):
+    '''
+    Get a upsampling block from configuration file and returns a pytorch layer.
+    '''
+    up_module = nn.Sequential()
+    # Get data
+    stride = int(block["stride"])
+    # Create layer
+    upsample = nn.Upsample(scale_factor = 2, mode = "bilinear")
+    up_module.add_module("upsample_{}".format(index), upsample)
+
+    return up_module
+
+
 def create_modules(blocks):
     '''
     The create_modules function takes a list blocks returned by the parse_cfg function.
@@ -93,12 +107,14 @@ def create_modules(blocks):
     for index, x in enumerate(blocks[1:]):
         module = None
 
+        # Conv layer
         if (x["type"] == "convolutional"):
+            module = read_conv_layer(x, prev_filters, index=index)
+        # Upsampling layer
+        elif (x["type"] == "upsample"):
+            module = read_upsampling_layer(x, index=index)
 
-            module = read_conv_block(x, prev_filters, index=index)
-
-
-        if type(module) == nn.Sequential():
+        if type(module) != None:
             module_list.append(module)
 
     print('')
