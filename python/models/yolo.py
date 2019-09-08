@@ -207,14 +207,68 @@ def create_modules(blocks):
     return (net_info, module_list)
 
 
+class Darknet(nn.Module):
+    def __init__(self, cfgfile):
+        super(Darknet, self).__init__()
+        self.blocks = parse_cfg(cfgfile)
+        self.hyperparams, self.module_list = create_modules(self.blocks)
+
+    def forward(self, x):
+        modules = self.blocks[1:]
+        outputs = {}   #We cache the outputs for the route layer
+
+        write = 0     #This is explained a bit later
+        for i, (module_def, module) in enumerate(zip(modules, self.module_list)):
+            # Get layer type
+            module_type = (module_def["type"])
+
+            # Simple forward
+            if module_type in ["convolutional", "upsample", "maxpool"]:
+                x = module(x)
+                outputs[i] = x
+
+            # Concatenations
+            elif module_type == "route":
+                layers = module_def["layers"]
+                layers = [int(a) for a in layers]
+
+                if (layers[0]) > 0:
+                    layers[0] = layers[0] - i
+
+                if len(layers) == 1:
+                    x = outputs[i + (layers[0])]
+
+                else:
+                    if (layers[1]) > 0:
+                        layers[1] = layers[1] - i
+
+                    map1 = outputs[i + layers[0]]
+                    map2 = outputs[i + layers[1]]
+
+                    x = torch.cat((map1, map2), 1)
+
+                outputs[i] = x
+
+            # Skip connections
+            elif  module_type == "shortcut":
+                from_ = int(module_def["from"])
+                x = outputs[i-1] + outputs[i+from_]
+
+                outputs[i] = x
+
+
+
+
 
 # Main calls
 if __name__ == '__main__':
 
     cfgfile = "./configs/yolov3.cfg"
-    blocks = parse_cfg(cfgfile)
-    #create_modules(blocks)
-    print(create_modules(blocks))
+    darknet = Darknet(cfgfile)
 
+
+    # Images
+    images = torch.randn(2, 3, 416, 416)
+    darknet(images)
 
     print('')
