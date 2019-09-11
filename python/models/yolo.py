@@ -171,13 +171,12 @@ def create_modules(blocks):
     prev_filters = 3
     output_filters = []
 
-
+    # Read blocks
     for index, x in enumerate(blocks[1:]):
         module = None
-
+        # Hypeparameters
         if (x["type"] == "net"):
             continue
-
         # Conv layer
         if (x["type"] == "convolutional"):
             module, filters = get_conv_layer(x, prev_filters, index=index)
@@ -205,6 +204,61 @@ def create_modules(blocks):
             output_filters.append(filters)
 
     return (net_info, module_list)
+
+def predict_transform(prediction, inp_dim, anchors, num_classes, CUDA = False):
+    '''
+    Output processing operations to do the three operationss on a single tensor.
+    predict_transform takes in 5 parameters; prediction (our output),
+    inp_dim (input image dimension), anchors, num_classes, and an optional CUDA flag.
+    '''
+    batch_size = prediction.size(0)
+    stride =  inp_dim // prediction.size(2)
+    grid_size = inp_dim // stride
+    bbox_attrs = 5 + num_classes
+    num_anchors = len(anchors)
+
+    anchors = [(a[0]/stride, a[1]/stride) for a in anchors]
+
+    prediction = prediction.view(batch_size, bbox_attrs*num_anchors, grid_size*grid_size)
+    prediction = prediction.transpose(1,2).contiguous()
+    prediction = prediction.view(batch_size, grid_size*grid_size*num_anchors, bbox_attrs)
+
+    #Sigmoid the  centre_X, centre_Y. and object confidencce
+    prediction[:,:,0] = torch.sigmoid(prediction[:,:,0])
+    prediction[:,:,1] = torch.sigmoid(prediction[:,:,1])
+    prediction[:,:,4] = torch.sigmoid(prediction[:,:,4])
+
+    #Add the center offsets
+    grid_len = np.arange(grid_size)
+    a,b = np.meshgrid(grid_len, grid_len)
+
+    x_offset = torch.FloatTensor(a).view(-1,1)
+    y_offset = torch.FloatTensor(b).view(-1,1)
+
+    if CUDA:
+        x_offset = x_offset.cuda()
+        y_offset = y_offset.cuda()
+
+    x_y_offset = torch.cat((x_offset, y_offset), 1).repeat(1,num_anchors).view(-1,2).unsqueeze(0)
+
+    prediction[:,:,:2] += x_y_offset
+
+    #log space transform height and the width
+    anchors = torch.FloatTensor(anchors)
+
+    if CUDA:
+        anchors = anchors.cuda()
+
+    anchors = anchors.repeat(grid_size*grid_size, 1).unsqueeze(0)
+    prediction[:,:,2:4] = torch.exp(prediction[:,:,2:4])*anchors
+
+    #Softmax the class scores
+    prediction[:,:,5: 5 + num_classes] = torch.sigmoid((prediction[:,:, 5 : 5 + num_classes]))
+
+    prediction[:,:,:4] *= stride
+
+
+    return prediction
 
 
 class Darknet(nn.Module):
@@ -256,8 +310,31 @@ class Darknet(nn.Module):
 
                 outputs[i] = x
 
+            # Detection
+            elif module_type == 'yolo':
 
+                anchors = module[0].anchors
+                #Get the input dimensions
+                inp_dim = int (self.hyperparams["height"])
 
+                #Get the number of classes
+                num_classes = int (module_def["classes"])
+
+                #Output the result
+                x = x.data
+                x = predict_transform(x, inp_dim, anchors, num_classes)
+
+                if type(x) == int:
+                    continue
+
+                if not write:
+                    detections = x
+                    write = 1
+
+                else:
+                    detections = torch.cat((detections, x), 1)
+
+                outputs[i] = outputs[i-1]
 
 
 # Main calls
@@ -268,7 +345,7 @@ if __name__ == '__main__':
 
 
     # Images
-    images = torch.randn(2, 3, 416, 416)
+    images = torch.randn(2, 3, 320, 320)
     darknet(images)
 
     print('')
