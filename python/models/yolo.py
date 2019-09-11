@@ -99,7 +99,7 @@ def get_upsampling_layer(block, index=0):
     # Get data
     stride = int(block["stride"])
     # Create layer
-    upsample = nn.Upsample(scale_factor = 2, mode = "bilinear")
+    upsample = nn.Upsample(scale_factor = 2, mode = "bilinear", align_corners=True)
     up_module.add_module("upsample_{}".format(index), upsample)
 
     return up_module
@@ -336,6 +336,11 @@ class Darknet(nn.Module):
 
                 outputs[i] = outputs[i-1]
 
+        try:
+            return detections
+        except:
+            return 0
+
 
 # Main calls
 if __name__ == '__main__':
@@ -346,6 +351,6 @@ if __name__ == '__main__':
 
     # Images
     images = torch.randn(2, 3, 320, 320)
-    darknet(images)
+    detn = darknet(images)
 
     print('')
