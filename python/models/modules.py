@@ -13,69 +13,122 @@ import torch.nn.functional as F
 
 class DarknetConvBlock(nn.Module):
     '''
-    Darknet Convolutional Block
+    Basic convolutional block
     '''
-    def __init__(self, in_ch, out_ch, batch_norm=True, rep=1, index=0):
+    def __init__(self, in_ch, out_ch,
+                kernel_size=3, stride=1, padding=1,
+                batch_norm=True, index=0):
         ''' Constructor '''
         super(DarknetConvBlock, self).__init__()
 
         # Parameters
         self.in_channels = in_ch
         self.out_channels = out_ch
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
         self.batch_norm = batch_norm
-        self.repetitions = rep
+        self.index = index
 
-        # Conv 0 - with downsampling
-        self.conv_down = nn.Sequential()
-        self.conv_down.add_module("conv_{0}".format(index),
-                            nn.Conv2d(in_ch, out_ch, 3,
-                                    stride=2,
-                                    padding=1,
+        # Sequential moduler
+        self.conv = nn.Sequential()
+        self.conv.add_module("conv_{0}".format(index),
+                            nn.Conv2d(in_ch, out_ch, kernel_size,
+                                    stride=stride,
+                                    padding=padding,
                                     bias=not batch_norm))
         if batch_norm:
-            self.conv_down.add_module("bnorm_{0}".format(index),
+            self.conv.add_module("bnorm_{0}".format(index),
                                 nn.BatchNorm2d(out_ch))
-        self.conv_down.add_module("leaky_{0}".format(index),
-                             nn.LeakyReLU(0.1, inplace=True))
-
-        # Convolution cycle - 1x1 - 3x3
-        self.conv_loop = nn.Sequential()
-        for idx in range(1,2*rep+1):
-            index += 1
-            # Change input and output according the pair of convs (1x1 and 3x3)
-            if idx % 2 == 1:
-                final_vol = round(out_ch / 2)
-                init_vol  = out_ch
-                ks = 1
-                pad = 0
-            else:
-                final_vol = out_ch
-                init_vol  = round(out_ch / 2)
-                ks = 3
-                pad = 1
-            # Conv layer
-            self.conv_loop.add_module("conv_{0}".format(index),
-                                nn.Conv2d(init_vol, final_vol, ks,
-                                            stride=1,
-                                            padding=pad,
-                                            bias=not batch_norm))
-            # Batch Normalization layer
-            if batch_norm:
-                self.conv_loop.add_module("bnorm_{0}".format(index),
-                                nn.BatchNorm2d(final_vol))
-            # Activation (Leaky) layer
-            self.conv_loop.add_module("leaky_{0}".format(index),
-                                nn.LeakyReLU(0.1, inplace=True))
+        self.conv.add_module("leaky_{0}".format(index),
+                             nn.LeakyReLU(inplace=True))
 
     def forward(self, x):
         ''' Foward method '''
-        x0 = self.conv_down(x)
-        x1 = self.conv_loop(x0)
-        x_out = x0 + x1
+        x = self.conv(x)
+        return x
+
+
+class DarknetBottleneck(nn.Module):
+    '''
+    Darknet Bottlenec Convolutional Block
+    '''
+    def __init__(self, ch_in, batch_norm=True, index=1):
+        super(DarknetBottleneck, self).__init__()
+        '''Constructor'''
+        self.in_channels = ch_in
+        self.mid_channels = round(ch_in / 2)
+        self.out_channels = ch_in
+        self.batch_norm = batch_norm
+        self.index_in = index
+
+        # First Conv 1x1
+        self.conv1 = DarknetConvBlock(self.in_channels, self.mid_channels,
+                                    kernel_size=1,
+                                    stride=1,
+                                    padding=0,
+                                    batch_norm=batch_norm,
+                                    index=index)
+        # Second Conv 3x3
+        index += 1
+        self.conv2 = DarknetConvBlock(self.mid_channels, self.out_channels,
+                                    kernel_size=3,
+                                    stride=1,
+                                    padding=1,
+                                    batch_norm=batch_norm,
+                                    index=index)
+        self.index_out = index
+
+    def forward(self, x):
+        ''' Foward method '''
+        x1 = self.conv1(x)
+        x2 = self.conv2(x1)
+        x_out = x + x2
         return x_out
 
 
-class DarknetUpConvBlock(nn.Module):
+class DarknetBlock(nn.Module):
+    '''
+    Darknet Convolutional Block
+    '''
+    def __init__(self, in_ch, out_ch, batch_norm=True, rep=1, index=0):
+        ''' Constructor '''
+        super(DarknetBlock, self).__init__()
+
+        # Parameters
+        self.in_channels = in_ch
+        self.out_channels = out_ch
+        self.batch_norm = batch_norm
+        self.repetitions = rep
+        self.index_in = index
+        conv_modules = nn.ModuleList()
+        # Conv 0 - with downsampling
+        conv_down = DarknetConvBlock(in_ch, out_ch,
+                                    kernel_size=3,
+                                    stride=2,
+                                    padding=1,
+                                    batch_norm=True,
+                                    index=index)
+        conv_modules.append(conv_down)
+        # Convolution cycle - 1x1 - 3x3
+        for idx in range(1,rep+1):
+            index += 1
+            bneck = DarknetBottleneck(out_ch,
+                                    batch_norm=batch_norm,
+                                    index=index)
+            conv_modules.append(bneck)
+            index += 1
+        self.index_out = index
+        # Create sequential conv
+        self.sequential = nn.Sequential(*conv_modules)
+
+    def forward(self, x):
+        ''' Foward method '''
+        x = self.sequential(x)
+        return x
+
+
+class DarknetUpsampling(nn.Module):
     '''
     Darknet Upsampling and Convolutional Block.
     '''
@@ -83,7 +136,7 @@ class DarknetUpConvBlock(nn.Module):
                 scale_factor=2, mode="nearest",
                 batch_norm=True, rep=1, index=0):
         ''' Constructor '''
-        super(DarknetUpConvBlock, self).__init__()
+        super(DarknetUpsampling, self).__init__()
 
         # Parameters
         self.in_channels = in_ch
@@ -93,19 +146,15 @@ class DarknetUpConvBlock(nn.Module):
         self.batch_norm = False
         self.scale_factor = scale_factor
         self.mode = mode
+        self.index_in = index
 
         # Set Conv in block
-        self.conv_in = nn.Sequential()
-        self.conv_in.add_module("conv_{0}".format(index),
-                            nn.Conv2d(in_ch, out_ch, 1,
+        self.conv_in = DarknetConvBlock(in_ch, out_ch,
+                                    kernel_size=1,
                                     stride=1,
                                     padding=0,
-                                    bias=not batch_norm))
-        if batch_norm:
-            self.conv_in.add_module("bnorm_{0}".format(index),
-                                nn.BatchNorm2d(out_ch))
-        self.conv_in.add_module("leaky_{0}".format(index),
-                             nn.LeakyReLU(inplace=True))
+                                    batch_norm=batch_norm,
+                                    index=index)
 
         # Upsampling block
         if self.mode in ["linear", "bilinear", "bicubic", "trilinear"]:
@@ -139,18 +188,14 @@ class DarknetUpConvBlock(nn.Module):
                 filter_sz = 3
                 pad = 1
             # Conv layer
-            self.conv_loop.add_module("conv_{0}".format(index),
-                                nn.Conv2d(init_vol, final_vol, filter_sz,
-                                            stride=1,
-                                            padding=pad,
-                                            bias=not batch_norm))
-            # Batch Normalization layer
-            if batch_norm:
-                self.conv_loop.add_module("bnorm_{0}".format(index),
-                                nn.BatchNorm2d(final_vol))
-            # Activation (Leaky) layer
-            self.conv_loop.add_module("leaky_{0}".format(index),
-                                nn.LeakyReLU(0.1, inplace=True))
+            conv_module = DarknetConvBlock(init_vol, final_vol,
+                                        kernel_size=filter_sz,
+                                        stride=1,
+                                        padding=pad,
+                                        batch_norm=batch_norm,
+                                        index=index)
+            self.conv_loop.add_module("conv_block_{0}".format(idx), conv_module)
+        self.index_out = index
 
     def forward(self, x, x_res=None):
         ''' Foward method '''
@@ -169,17 +214,17 @@ class DarknetUpConvBlock(nn.Module):
 
 
 
+
 # Main calls
 if __name__ == '__main__':
 
     # Images
     x0 = torch.randn(2, 32, 160, 160)
 
-    darknet_conv = DarknetConvBlock(32, 64, rep=5)
-    darknet_up = DarknetUpConvBlock(64, 32, res_ch=32, rep=2)
+    darknet_conv = DarknetBlock(32, 64, rep=5)
+    darknet_up = DarknetUpsampling(64, 32, res_ch=32, rep=2)
 
     x1 = darknet_conv(x0)
     x2 = darknet_up(x1, x_res=x0)
-
 
     print('')
