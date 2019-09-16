@@ -149,7 +149,7 @@ class DarknetUpsampling(nn.Module):
         self.index_in = index
 
         # Set Conv in block
-        self.conv_in = DarknetConvBlock(in_ch, out_ch,
+        self.conv_in = DarknetConvBlock(self.in_channels, self.out_channels,
                                     kernel_size=1,
                                     stride=1,
                                     padding=0,
@@ -169,22 +169,22 @@ class DarknetUpsampling(nn.Module):
 
         # Set output conv block
         self.conv_loop = nn.Sequential()
-        for idx in range(1,2*rep+1):
+        for idx in range(1,rep+1):
             index += 1
             # Change input and output according the pair of convs (1x1 and 3x3)
             if idx == 1:
-                final_vol = round(out_ch / 2)
-                init_vol  = out_ch + res_ch
+                init_vol  = self.out_channels + self.res_channels
+                final_vol = self.in_channels
                 filter_sz = 1
                 pad = 0
             elif idx % 2 == 1:
-                final_vol = round(out_ch / 2)
-                init_vol  = out_ch
+                init_vol  = self.out_channels
+                final_vol = self.in_channels
                 filter_sz = 1
                 pad = 0
             else:
-                final_vol = out_ch
-                init_vol  = round(out_ch / 2)
+                init_vol  = self.in_channels
+                final_vol = self.out_channels
                 filter_sz = 3
                 pad = 1
             # Conv layer
@@ -223,19 +223,42 @@ class YoloDetector(nn.Module):
         Kernel depth arrangement:
             [t_x ,t_y, t_w, t_h], [p_o], [p_1, p+2, ..., p_C] x B
     '''
-    def __init__(self, in_ch, anchors, num_classes, bb_by_cell=3, img_dim=512, index=0):
+    def __init__(self, in_ch, anchors, num_classes,
+                        bb_by_cell=3, img_dim=512,
+                        batch_norm=True, index=0):
+        ''' Constructor '''
+        super(YoloDetector, self).__init__()
 
         kernel_depth = bb_by_cell * (4 + 1 + num_classes)
-        #
-        #
-        self.conv_in = nn.Sequential()
-        self.conv_in.add_module("conv_{0}".format(index),
-                            nn.Conv2d(in_ch, kernel_depth, 1,
+
+        self.in_channels = in_ch
+        self.mid_channels = round(in_ch / 2)
+        self.out_channels = kernel_depth
+        self.batch_norm = batch_norm
+        self.bb_by_cell = bb_by_cell
+        self.anchors = anchors
+        self.index_in = index
+
+        # Reduce depth with 3x3
+        self.conv_in = DarknetConvBlock(self.in_channels, self.mid_channels,
+                                        kernel_size=3,
+                                        stride=1,
+                                        padding=1,
+                                        batch_norm=self.batch_norm,
+                                        index=index)
+        index += 1
+        # Reduce to output dimension
+        self.conv_out = nn.Sequential()
+        self.conv_out.add_module("conv_{0}".format(index),
+                            nn.Conv2d(self.mid_channels, self.out_channels, 1,
                                     stride=1,
                                     padding=0))
 
-
-
+    def forward(self, x):
+        ''' Foward method '''
+        x = self.conv_in(x)
+        x = self.conv_out(x)
+        return x
 
 
 # Main calls
@@ -245,9 +268,11 @@ if __name__ == '__main__':
     x0 = torch.randn(2, 32, 160, 160)
 
     darknet_conv = DarknetBlock(32, 64, rep=5)
-    darknet_up = DarknetUpsampling(64, 32, res_ch=32, rep=2)
+    darknet_up = DarknetUpsampling(64, 32, res_ch=32, rep=5)
+    yolo_dtn = YoloDetector(64, 3, 3)
 
     x1 = darknet_conv(x0)
     x2 = darknet_up(x1, x_res=x0)
+    x3 = yolo_dtn(x2)
 
     print('')
