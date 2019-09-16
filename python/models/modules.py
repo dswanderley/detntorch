@@ -213,6 +213,29 @@ class DarknetUpsampling(nn.Module):
         return x_out
 
 
+class YoloDetector(nn.Module):
+    '''
+    Output Dimensions of each detection kernel is 1 x 1 x (B x (4 + 1 + C))
+        - B: Number of bounding boxes a cell on the feature map can predic;
+        - 4: Bounding box attributes;
+        - 1: Object confidence;
+        - C: Number of classes.
+        Kernel depth arrangement:
+            [t_x ,t_y, t_w, t_h], [p_o], [p_1, p+2, ..., p_C] x B
+    '''
+    def __init__(self, in_ch, anchors, num_classes, bb_by_cell=3, img_dim=512, index=0):
+
+        kernel_depth = bb_by_cell * (4 + 1 + num_classes)
+        #
+        #
+        self.conv_in = nn.Sequential()
+        self.conv_in.add_module("conv_{0}".format(index),
+                            nn.Conv2d(in_ch, kernel_depth, 1,
+                                    stride=1,
+                                    padding=0))
+
+
+
 
 
 # Main calls
