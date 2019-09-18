@@ -128,6 +128,52 @@ class DarknetBlock(nn.Module):
         return x
 
 
+class DarknetLoopBlock(nn.Module):
+    '''
+    Darknet Loop Convolutional Block
+    '''
+    def __init__(self, in_ch, out_ch, batch_norm=True, rep=1, index=0):
+        ''' Constructor '''
+        super(DarknetLoopBlock, self).__init__()
+
+        # Parameters
+        self.in_channels = in_ch
+        self.out_channels = out_ch
+        self.repetitions = rep
+        self.batch_norm = batch_norm
+        self.index_in = index
+
+        # Convolution cycle - 1x1 - 3x3
+        self.conv_loop = nn.Sequential()
+        for idx in range(1,rep+1):
+            index += 1
+            # Change input and output according the pair of convs (1x1 and 3x3)
+            if idx % 2 == 1:
+                init_vol  = self.in_channels
+                final_vol = self.out_channels
+                filter_sz = 1
+                pad = 0
+            else:
+                init_vol  = self.out_channels
+                final_vol = self.in_channels
+                filter_sz = 3
+                pad = 1
+            # Conv layer
+            conv_module = DarknetConvBlock(init_vol, final_vol,
+                                        kernel_size=filter_sz,
+                                        stride=1,
+                                        padding=pad,
+                                        batch_norm=batch_norm,
+                                        index=index)
+            self.conv_loop.add_module("conv_block_{0}".format(idx), conv_module)
+        self.index_out = index
+
+    def forward(self, x):
+        ''' Foward method '''
+        x = self.conv_loop(x)
+        return x
+
+
 class DarknetUpsampling(nn.Module):
     '''
     Darknet Upsampling and Convolutional Block.
@@ -143,7 +189,7 @@ class DarknetUpsampling(nn.Module):
         self.out_channels = out_ch
         self.res_channels = res_ch
         self.repetitions = rep
-        self.batch_norm = False
+        self.batch_norm = batch_norm
         self.scale_factor = scale_factor
         self.mode = mode
         self.index_in = index
@@ -174,17 +220,17 @@ class DarknetUpsampling(nn.Module):
             # Change input and output according the pair of convs (1x1 and 3x3)
             if idx == 1:
                 init_vol  = self.out_channels + self.res_channels
-                final_vol = self.in_channels
+                final_vol = self.out_channels
                 filter_sz = 1
                 pad = 0
             elif idx % 2 == 1:
-                init_vol  = self.out_channels
-                final_vol = self.in_channels
+                init_vol  = self.in_channels
+                final_vol = self.out_channels
                 filter_sz = 1
                 pad = 0
             else:
-                init_vol  = self.in_channels
-                final_vol = self.out_channels
+                init_vol  = self.out_channels
+                final_vol = self.in_channels
                 filter_sz = 3
                 pad = 1
             # Conv layer
@@ -261,10 +307,103 @@ class YoloDetector(nn.Module):
         return x
 
 
+class Darknet(nn.Module):
+    '''
+    Darknet body class
+    '''
+    def __init__(self, in_ch, filters=32,
+                batch_norm=True):
+        ''' Constructor '''
+        super(Darknet, self).__init__()
+
+        # Parameters
+        self.in_channels = in_ch
+        self.batch_norm = batch_norm
+        self.filters = filters
+        index = 0
+        # Initial Conv
+        self.conv0 = DarknetConvBlock(self.in_channels, self.filters,
+                                    kernel_size=3,
+                                    stride=1,
+                                    padding=1,
+                                    batch_norm=self.batch_norm,
+                                    index=index)
+        index += 1
+        # First block
+        self.conv1 = DarknetBlock(self.filters, self.filters*2,
+                                batch_norm=self.batch_norm,
+                                rep=1,
+                                index=index)
+        index = self.conv1.index_out + 1
+        # Second block
+        self.conv2 = DarknetBlock(self.filters * 2, self.filters * 4,
+                                batch_norm=self.batch_norm,
+                                rep=2,
+                                index=index)
+        index = self.conv2.index_out + 1
+        # Third block
+        self.conv3 = DarknetBlock(self.filters * 4, self.filters * 8,
+                                batch_norm=self.batch_norm,
+                                rep=8,
+                                index=index)
+        index = self.conv3.index_out + 1
+        # Fourth block
+        self.conv4 = DarknetBlock(self.filters * 8, self.filters * 16,
+                                batch_norm=self.batch_norm,
+                                rep=8,
+                                index=index)
+        index = self.conv4.index_out + 1
+        # Fifth block
+        self.conv5 = DarknetBlock(self.filters * 16, self.filters * 32,
+                                batch_norm=self.batch_norm,
+                                rep=4,
+                                index=index)
+        index = self.conv5.index_out + 1
+
+        # Output 1
+        self.conv_low = DarknetLoopBlock(self.filters * 32, self.filters * 16,
+                                    batch_norm=self.batch_norm,
+                                    rep=5,
+                                    index=index)
+        index = self.conv_low.index_out + 1
+        # Output 2
+        self.conv_up1 = DarknetUpsampling(self.filters * 16, self.filters * 8,
+                                    res_ch=self.filters * 16,
+                                    batch_norm=self.batch_norm,
+                                    rep=5,
+                                    index=index)
+        index = self.conv_up1.index_out + 1
+        # Output 3
+        self.conv_up2 = DarknetUpsampling(self.filters * 8, self.filters * 4,
+                                    res_ch=self.filters * 8,
+                                    batch_norm=self.batch_norm,
+                                    rep=5,
+                                    index=index)
+        index = self.conv_up2.index_out + 1
+
+
+    def forward(self, x):
+        ''' Foward method '''
+        x0 = self.conv0(x)
+        x1 = self.conv1(x0)
+        x2 = self.conv2(x1)
+        x3 = self.conv3(x2)
+        x4 = self.conv4(x3)
+        x5 = self.conv5(x4)
+        x_out1 = self.conv_low(x5)
+        x_out2 = self.conv_up1(x_out1, x_res=x4)
+        x_out3 = self.conv_up2(x_out2, x_res=x3)
+        return x_out1, x_out2, x_out3
+
+
+
 # Main calls
 if __name__ == '__main__':
 
     # Images
+    x = torch.randn(2, 1, 512, 512)
+
+    '''
     x0 = torch.randn(2, 32, 160, 160)
 
     darknet_conv = DarknetBlock(32, 64, rep=5)
@@ -274,5 +413,9 @@ if __name__ == '__main__':
     x1 = darknet_conv(x0)
     x2 = darknet_up(x1, x_res=x0)
     x3 = yolo_dtn(x2)
+    '''
+
+    darknet = Darknet(1)
+    x_out1, x_out2, x_out3 = darknet(x)
 
     print('')
