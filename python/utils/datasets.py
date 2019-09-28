@@ -114,7 +114,7 @@ class OvaryDataset(Dataset):
         '''
         # Image to array
         im_np = np.array(image).astype(np.float32) / 255.
-        if (len(im_np.shape) > 2):
+        if len(im_np.shape) > 2:
             im_np = im_np[:,:,0]
 
         '''
@@ -179,7 +179,7 @@ class OvaryDataset(Dataset):
         f_dilate = ndi.morphology.binary_dilation(f_dilate).astype(np.float32)
         mask_edges = f_dilate - f_erode
 
-        # Ovarian auxiliary mask output
+        # Follicle auxiliary mask output
         if self.encods[2]:
             # Multi mask - background (R = 1) / follicle (G = 1)
             # follicle mask
@@ -230,9 +230,13 @@ class OvaryDataset(Dataset):
             else:
                 labels.append(2)
             slice_x, slice_y = ndi.find_objects(mask_inst==i+1)[0]
-            box = [float(slice_x.start), float(slice_y.start),
-                   float(slice_x.stop),  float(slice_y.stop)]
+            box = [ float(slice_x.start),
+                    float(slice_y.start),
+                    float(slice_x.stop),
+                    float(slice_y.stop)]
+
             boxes.append(box)
+
 
         '''
             Input data: Add CLAHE if necessary
@@ -303,31 +307,74 @@ class OvaryDataset(Dataset):
             return sample
 
 
-def collate_fn_ov_list(batch):
-    '''
-        Merges a list of samples to form a mini-batch
-        dictionary for OvaryDataset.
-    '''
-    el_list = []
-    for b in batch:
-        el_list.append(
-            {
-                'im_name': b[0],
-                'image': b[1],
-                'gt_mask': b[2],
-                'ovary_mask': b[3],
-                'follicle_mask': b[4],
-                'follicle_edge': b[5],
-                'follicle_instances': b[6],
-                'num_follicles':  b[7],
-                'targets': {
-                            'boxes': b[8],
-                            'labels': b[9],
-                            'masks': b[10]
-                        }
-            }
-        )
-    return el_list
+    def collate_fn_list(self, batch):
+        '''
+            Merges a list of samples to form a mini-batch
+            dictionary for OvaryDataset.
+        '''
+        el_list = []
+        for b in batch:
+            el_list.append(
+                {
+                    'im_name': b[0],
+                    'image': b[1],
+                    'gt_mask': b[2],
+                    'ovary_mask': b[3],
+                    'follicle_mask': b[4],
+                    'follicle_edge': b[5],
+                    'follicle_instances': b[6],
+                    'num_follicles':  b[7],
+                    'targets': {
+                                'boxes': b[8],
+                                'labels': b[9],
+                                'masks': b[10]
+                            }
+                }
+            )
+        return el_list
+
+    def collate_fn_yolo(self, batch):
+        '''
+        Merges a list of samples to form a YOLO batch.
+
+        Outputs
+            - names:    tuple with filenames
+            - imgs:     tensor - size (batch_size, channels, height, width)
+            - targets:  tensor - [batch_index, class, xc, yc, h, w]
+        '''
+        batch_list = list(zip(*batch))
+        names = batch_list[0]
+        imgs  = batch_list[1]
+        tgts = batch_list[8]
+        lbls = batch_list[9]
+        targets = []
+
+        # Add sample index to targets
+        for i, (lbl, tgt) in enumerate(zip(lbls, tgts)):
+
+            im_height, im_width = imgs[i].shape[-2], imgs[i].shape[-1] # [channels, height, width]
+            # Compute bouding boxes on YOLO style
+            center_x = (tgt[:,0] + tgt[:,2]) / 2 / im_width
+            center_y = (tgt[:,1] + tgt[:,3]) / 2 / im_height
+            obj_width = (tgt[:,2] - tgt[:,0]) / im_width
+            obj_height = (tgt[:,3] - tgt[:,1]) / im_height
+            # Add target data to the same array
+            boxes = torch.zeros((len(tgt), 6))
+            boxes[:,0] = i;     # index of image on batch
+            boxes[:,1] = lbl;   # classes
+            boxes[:,2] = center_x;  # bouding boxes
+            boxes[:,3] = center_y;  # bouding boxes
+            boxes[:,4] = obj_width;  # bouding boxes
+            boxes[:,5] = obj_height;  # bouding boxes
+            targets.append(boxes)
+        # Convert list to a single tensor
+        targets = torch.cat(targets, 0)
+
+        # images to input shape
+        imgs = torch.stack([img for img in imgs])
+
+        return names, imgs, targets
+
 
 
 # Main calls
@@ -343,7 +390,7 @@ if __name__ == '__main__':
                            out_tuple=True)
     # Loader
     data_loader = DataLoader(dataset, batch_size=4, shuffle=True,
-                                    collate_fn=collate_fn_ov_list)
+                                    collate_fn=dataset.collate_fn_yolo)
     # iterate
     for _, sample in enumerate(data_loader):
             # Load data
