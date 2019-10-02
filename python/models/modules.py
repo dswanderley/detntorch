@@ -81,9 +81,9 @@ class DarknetBottleneck(nn.Module):
 
     def forward(self, x):
         ''' Foward method '''
-        x1 = self.conv1(x)
-        x2 = self.conv2(x1)
-        x_out = x + x2
+        x_1 = self.conv1(x)
+        x_2 = self.conv2(x_1)
+        x_out = x + x_2
         return x_out
 
 
@@ -111,7 +111,7 @@ class DarknetBlock(nn.Module):
                                     index=index)
         conv_modules.append(conv_down)
         # Convolution cycle - 1x1 - 3x3
-        for idx in range(1,rep+1):
+        for _ in range(1,rep+1):
             index += 1
             bneck = DarknetBottleneck(out_ch,
                                     batch_norm=batch_norm,
@@ -124,8 +124,8 @@ class DarknetBlock(nn.Module):
 
     def forward(self, x):
         ''' Foward method '''
-        x = self.sequential(x)
-        return x
+        x_out = self.sequential(x)
+        return x_out
 
 
 class DarknetLoopBlock(nn.Module):
