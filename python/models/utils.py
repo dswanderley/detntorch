@@ -42,7 +42,9 @@ def bbox_iou(box1, box2):
 
 
 def prepare_targets(pred_boxes, pred_cls, target, anchors, ignore_thresh):
+    """
 
+    """
     batch_size  = pred_boxes.size(0)
     num_anchors = pred_boxes.size(1)
     grid_size   = pred_boxes.size(2)
