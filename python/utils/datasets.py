@@ -371,7 +371,7 @@ class OvaryDataset(Dataset):
         targets = torch.cat(targets, 0)
 
         # images to input shape
-        imgs = torch.stack([img for img in imgs])
+        imgs = torch.stack([img if (len(img.shape) > 2) else img.unsqueeze_(0) for img in imgs])
 
         return names, imgs, targets
 
@@ -392,7 +392,7 @@ if __name__ == '__main__':
     data_loader = DataLoader(dataset, batch_size=4, shuffle=True,
                                     collate_fn=dataset.collate_fn_yolo)
     # iterate
-    for _, sample in enumerate(data_loader):
+    for _, (names, imgs, targets) in enumerate(data_loader):
             # Load data
 
             '''
