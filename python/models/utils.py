@@ -43,7 +43,26 @@ def bbox_iou(box1, box2):
 
 def prepare_targets(pred_boxes, pred_cls, target, anchors, ignore_thresh):
     """
+        Adjust targets to the network output format and compare with anchor boxes.
 
+        INPUTS
+            pred_boxes: predicted boxes [bs, n_anchors, grid_height, grid_width, 4 (bbox_dim)]
+            pred_cls:   predicted classes [bs, n_anchors, grid_height, grid_width, n_classes]
+            targets:    bouding boxes from dataloader
+            scaled_anchors: values of the pre-defined anchores [n_anchors , 2 (w & h)]
+            ignore_thresh: threshold value to ignore iou between targets and anchors
+
+        OUTPUTS
+            iou_scores:
+            class_pred: Class prediction by batch
+            obj_detn:   Object location
+            not_detn:   Not detected positions to zero for larger iou
+            bb_x:       Box center y by patch
+            bb_y:       Box center x by patch
+            bb_w:       Box width by patch
+            bb_h:       Box height by patch
+            tcls:       One-hot encoding per classes
+            tconf:      obj_detn.float()
     """
     batch_size  = pred_boxes.size(0)
     num_anchors = pred_boxes.size(1)
