@@ -269,20 +269,19 @@ class YoloDetector(nn.Module):
         Kernel depth arrangement:
             [t_x ,t_y, t_w, t_h], [p_o], [p_1, p+2, ..., p_C] x B
     '''
-    def __init__(self, in_ch, anchors, num_classes,
-                        bb_by_cell=3, img_dim=512,
+    def __init__(self, in_ch, num_classes=3, num_anchors=3,
                         batch_norm=True, index=0):
         ''' Constructor '''
         super(YoloDetector, self).__init__()
 
-        kernel_depth = bb_by_cell * (4 + 1 + num_classes)
+        kernel_depth = num_anchors * (4 + 1 + num_classes)
 
         self.in_channels = in_ch
         self.mid_channels = round(in_ch / 2)
         self.out_channels = kernel_depth
         self.batch_norm = batch_norm
-        self.bb_by_cell = bb_by_cell
-        self.anchors = anchors
+        self.num_anchors = num_anchors
+        self.num_classes = num_classes
         self.index_in = index
 
         # Reduce depth with 3x3
@@ -304,7 +303,18 @@ class YoloDetector(nn.Module):
         ''' Foward method '''
         x = self.conv_in(x)
         x = self.conv_out(x)
-        return x
+
+        # Reshape prediction for an easier way to understand
+        batch_size = x.size(0)
+        grid_size = x.size(2)
+
+        prediction = (
+            x.view(batch_size, self.num_anchors, self.num_classes + 5, grid_size, grid_size)
+            .permute(0, 1, 3, 4, 2)
+            .contiguous()
+        )
+        # [batch, anchor, grid_height, grid_width, classes_and_bbox]
+        return prediction
 
 
 class Darknet(nn.Module):
@@ -397,6 +407,51 @@ class Darknet(nn.Module):
 
 
 
+class Yolo_v3(nn.Module):
+    '''
+    Yolo network
+    '''
+    def __init__(self, in_ch):
+        ''' Constructor '''
+        super(Yolo_v3, self).__init__()
+
+        # Parameters
+        self.in_ch = in_ch
+        self.anchors = []
+        self.num_anchors = 3
+        self.num_classes = 2
+
+        # Body
+        self.darknet = Darknet(in_ch)
+
+        # Detectors
+        self.yolo1 = YoloDetector(512,
+                        num_classes=self.num_classes,
+                        num_anchors=self.num_anchors)
+        self.yolo2 = YoloDetector(256,
+                        num_classes=self.num_classes,
+                        num_anchors=self.num_anchors)
+        self.yolo3 = YoloDetector(128,
+                        num_classes=self.num_classes,
+                        num_anchors=self.num_anchors)
+
+    def forward(self, x):
+        ''' Foward method '''
+        self.image_size = x.shape[-1]
+        # Run body
+        x_1, x_2, x_3 = self.darknet(x)
+        # Get ratio / stride
+        self.net_stride_1 = self.image_size / x_1.shape[-1]
+        self.net_stride_2 = self.image_size / x_2.shape[-1]
+        self.net_stride_3 = self.image_size / x_3.shape[-1]
+        # Prediction
+        pred_1 = self.yolo1(x_1)
+        pred_2 = self.yolo2(x_2)
+        pred_3 = self.yolo3(x_3)
+
+        return pred_1, pred_2, pred_3
+
+
 # Main calls
 if __name__ == '__main__':
 
@@ -413,9 +468,15 @@ if __name__ == '__main__':
     x1 = darknet_conv(x0)
     x2 = darknet_up(x1, x_res=x0)
     x3 = yolo_dtn(x2)
-    '''
 
     darknet = Darknet(1)
     x_out1, x_out2, x_out3 = darknet(x)
+    '''
+    # [2, 512, 16, 16]
+    # [2, 256, 32, 32]
+    # [2, 128, 64, 64]
+
+    yolo = Yolo_v3(1)
+    x_out1, x_out2, x_out3 = yolo(x)
 
     print('')
