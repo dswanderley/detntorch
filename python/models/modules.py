@@ -314,6 +314,13 @@ class YoloDetector(nn.Module):
             .contiguous()
         )
         # [batch, anchor, grid_height, grid_width, classes_and_bbox]
+
+        # Apply sigmoit to outputs (expept height and width)
+        prediction[..., 0] = torch.sigmoid(prediction[..., 0])      # Center x
+        prediction[..., 1] = torch.sigmoid(prediction[..., 1])      # Center y
+        prediction[..., 4] = torch.sigmoid(prediction[..., 4])      # Confidence
+        prediction[..., 5:] = torch.sigmoid(prediction[..., 5:])    # Classes
+
         return prediction
 
 
