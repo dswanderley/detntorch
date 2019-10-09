@@ -55,14 +55,14 @@ def prepare_targets(pred_boxes, pred_cls, target, anchors, ignore_thresh):
         OUTPUTS
             iou_scores:
             class_pred: Class prediction by batch
-            obj_detn:   Object location
-            not_detn:   Not detected positions to zero for larger iou
+            obj:   Object location
+            no_obj:   Not detected positions to zero for larger iou
             bb_x:       Box center y by patch
             bb_y:       Box center x by patch
             bb_w:       Box width by patch
             bb_h:       Box height by patch
             tcls:       One-hot encoding per classes
-            tconf:      obj_detn.float()
+            tconf:      obj.float()
     """
     batch_size  = pred_boxes.size(0)
     num_anchors = pred_boxes.size(1)
@@ -70,8 +70,8 @@ def prepare_targets(pred_boxes, pred_cls, target, anchors, ignore_thresh):
     num_classes = pred_cls.size(-1)
 
 	# Object location by patch
-    obj_detn = torch.zeros((batch_size, num_anchors, grid_size, grid_size), dtype=torch.uint8)
-    not_detn = torch.ones((batch_size, num_anchors, grid_size, grid_size), dtype=torch.uint8)
+    obj = torch.zeros((batch_size, num_anchors, grid_size, grid_size), dtype=torch.uint8)
+    no_obj = torch.ones((batch_size, num_anchors, grid_size, grid_size), dtype=torch.uint8)
     # Bouding boxes
     iou_scores = torch.zeros((batch_size, num_anchors, grid_size, grid_size), dtype=torch.float32)
     bb_x = torch.zeros((batch_size, num_anchors, grid_size, grid_size), dtype=torch.float32)
@@ -107,13 +107,13 @@ def prepare_targets(pred_boxes, pred_cls, target, anchors, ignore_thresh):
     patch_i, patch_j = patch_xy.long().t()
 
     # Set object (patch) positions
-    obj_detn[batch_idx, best_n, patch_j, patch_i] = 1
-    not_detn[batch_idx, best_n, patch_j, patch_i] = 0
+    obj[batch_idx, best_n, patch_j, patch_i] = 1
+    no_obj[batch_idx, best_n, patch_j, patch_i] = 0
 
     # Set the not detected positions to zero for larger iou
     for i, anchor_ious in enumerate(ious.t()):
         anchor_thresh = anchor_ious > ignore_thresh
-        not_detn[batch_idx[i], anchor_thresh, patch_j[i], patch_i[i]] = 0
+        no_obj[batch_idx[i], anchor_thresh, patch_j[i], patch_i[i]] = 0
 
     # Bouding boxes center
     bb_x[batch_idx, best_n, patch_j, patch_i] = patch_x - patch_x.floor()
@@ -133,5 +133,5 @@ def prepare_targets(pred_boxes, pred_cls, target, anchors, ignore_thresh):
                                                 pred_boxes[batch_idx, best_n, patch_j, patch_i],
                                                 target_boxes
                                                 )
-    tconf = obj_detn.float()
-    return iou_scores, class_pred, obj_detn, not_detn, bb_x, bb_y, bb_w, bb_h, tcls, tconf
+    tconf = obj.float()
+    return iou_scores, class_pred, obj, no_obj, bb_x, bb_y, bb_w, bb_h, tcls, tconf
