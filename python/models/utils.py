@@ -6,6 +6,8 @@ Created on Wed Oct 02 21:34:01 2019
 @description: YOLO modules auxiliary functions.
 """
 
+import torch
+
 
 def relative_bbox_iou(w1, h1, w2, h2):
     """
@@ -96,7 +98,7 @@ def prepare_targets(pred_boxes, pred_cls, target, anchors, ignore_thresh):
         w2, h2 = wh2[0], wh2[1]
         r_iou = relative_bbox_iou(w1, h1, w2, h2)
         ious_list.append(r_iou)
-    torch.stack(ious_list)
+    ious = torch.stack(ious_list)
     # Get max iou
     best_ious, best_n = ious.max(0)
 

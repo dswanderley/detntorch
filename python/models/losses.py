@@ -14,6 +14,8 @@ import torch
 import numpy as np
 import torch.nn as nn
 
+from models.utils import prepare_targets
+
 
 class YoloLoss(nn.Module):
     '''
@@ -27,26 +29,43 @@ class YoloLoss(nn.Module):
     def __init__(self, scaled_anchors, ignore_thresh=0.5):
         super(YoloLoss, self).__init__()
 
-        self.img_dim = img_dim
         self.anchors = scaled_anchors
         self.ignore_thresh = ignore_thresh
+
         self.obj_scale = 1
         self.noobj_scale = 100
         self.mse_loss = nn.MSELoss()
         self.bce_loss = nn.BCELoss()
+        # Offset by grids
+        self.num_anchors = len(self.anchors)
+        self.anchor_w = self.anchors[:, 0:1].view((1, self.num_anchors, 1, 1))
+        self.anchor_h = self.anchors[:, 1:2].view((1, self.num_anchors, 1, 1))
 
 
-    def forward (self, pred, targets):
+    def forward(self, pred, targets):
 
         # Get outputs
-        pred_x = pred[..., 0]  # Center x
-        pred_y = pred[..., 1]  # Center y
-        pred_w = pred[..., 2]   # Width
-        pred_h = prediction[..., 3]  # Height
-        pred_conf = prediction[..., 4]  # Conf
-        pred_cls =  prediction[..., 5:]  # Cls pred.
+        pred_x = pred[..., 0]       # Center x
+        pred_y = pred[..., 1]       # Center y
+        pred_w = pred[..., 2]       # Width
+        pred_h = pred[..., 3]       # Height
+        pred_conf = pred[..., 4]    # Conf
+        pred_cls =  pred[..., 5:]   # Cls pred.
+        gs = pred.size(-2)     # grid size
 
-        iou_scores, class_pred, obj_detn, noobj_detn, bb_x, bb_y, bb_w, bb_h, tcls, tconf = build_targets(
+        # Reference/index grids
+        grid_x = torch.arange(gs).repeat(gs, 1).view([1,1,gs,gs]).type(torch.FloatTensor)
+        grid_y = torch.arange(gs).repeat(gs, 1).t().view([1,1,gs,gs]).type(torch.FloatTensor)
+
+        # Add offset and scale with anchors
+        pred_boxes = torch.FloatTensor(pred[..., :4].shape)
+        pred_boxes[..., 0] = pred_x.data + grid_x
+        pred_boxes[..., 1] = pred_y.data + grid_y
+        pred_boxes[..., 2] = torch.exp(pred_w.data) * self.anchor_w
+        pred_boxes[..., 3] = torch.exp(pred_h.data) * self.anchor_h
+
+        # Bouding boxes scores
+        iou_scores, class_pred, obj_detn, noobj_detn, bb_x, bb_y, bb_w, bb_h, tcls, tconf = prepare_targets(
                 pred_boxes=pred_boxes,
                 pred_cls=pred_cls,
                 target=targets,
@@ -83,29 +102,29 @@ class YoloLoss(nn.Module):
         # Find binary all IoU over 0.75
         iou75 = (iou_scores > 0.75).float()
         # Find all predicted right class bouding boces over 0.5 confidence
-        detected_mask = conf50 * class_pred * tconf
+        obj_mask = conf50 * class_pred * tconf
         # Divide (sum of detected mask that is highter than 0.5 IOU) with (sum of con50)
-        precision = torch.sum(iou50 * detected_mask) / (conf50.sum() + 1e-16)
+        precision = torch.sum(iou50 * obj_mask) / (conf50.sum() + 1e-16)
         # Divide (sum of detected mask that is highter than 0.5 IOU) with (sum of obj_mask)
-        recall50 = torch.sum(iou50 * detected_mask) / (obj_mask.sum() + 1e-16)
+        recall50 = torch.sum(iou50 * obj_mask) / (obj_mask.sum() + 1e-16)
         # Divide (sum of detected mask that is highter than 0.75 IOU) with (sum of obj_mask)
-        recall75 = torch.sum(iou75 * detected_mask) / (obj_mask.sum() + 1e-16)
+        recall75 = torch.sum(iou75 * obj_mask) / (obj_mask.sum() + 1e-16)
 
-        self.metrics = {
-            "loss": to_cpu(total_loss).item(),
-            "x": to_cpu(loss_x).item(),
-            "y": to_cpu(loss_y).item(),
-            "w": to_cpu(loss_w).item(),
-            "h": to_cpu(loss_h).item(),
-            "conf": to_cpu(loss_conf).item(),
-            "cls": to_cpu(loss_cls).item(),
-            "cls_acc": to_cpu(cls_acc).item(),
-            "recall50": to_cpu(recall50).item(),
-            "recall75": to_cpu(recall75).item(),
-            "precision": to_cpu(precision).item(),
-            "conf_obj": to_cpu(conf_obj).item(),
-            "conf_noobj": to_cpu(conf_noobj).item(),
-            "grid_size": grid_size,
+        metrics = {
+            "loss": total_loss.item(),
+            "x": loss_x.item(),
+            "y": loss_y.item(),
+            "w": loss_w.item(),
+            "h": loss_h.item(),
+            "conf": loss_conf.item(),
+            "cls": loss_cls.item(),
+            "cls_acc": cls_acc.item(),
+            "recall50": recall50.item(),
+            "recall75": recall75.item(),
+            "precision": precision.item(),
+            "conf_obj": conf_obj.item(),
+            "conf_noobj": conf_noobj.item(),
+            "grid_size": gs,
         }
 
         return metrics
