@@ -11,6 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import losses
+#from models.utils import get_pred_boxes
 from utils import get_pred_boxes
 
 
@@ -459,9 +460,21 @@ class Yolo_v3(nn.Module):
         self.loss2 = losses.YoloLoss(self.scaled_anchors_2)
         self.loss3 = losses.YoloLoss(self.scaled_anchors_3)
 
+    def get_output_shape(self, pred_block, num_samples):
+        # Convert pred to output shape
+        output_shape = torch.cat(
+            (
+                pred_block[6].view(num_samples, -1, 4) * self.darknet.stride_out_1,
+                pred_block[4].view(num_samples, -1, 1),
+                pred_block[5].view(num_samples, -1, self.num_classes),
+            ),
+            -1,
+        )
+        return output_shape
 
     def forward(self, x, targets=None):
         ''' Foward method '''
+        num_samples = x.size(0)
         self.image_size = x.shape[-1]
         # Run body
         x_1, x_2, x_3 = self.darknet(x)
@@ -478,8 +491,16 @@ class Yolo_v3(nn.Module):
         pred_block_2 = get_pred_boxes(pred_2, self.scaled_anchors_1)
         pred_block_3 = get_pred_boxes(pred_3, self.scaled_anchors_1)
 
+        # Convert predictions to output shape
+        output_1 = self.get_output_shape(pred_block_1, num_samples)
+        output_2 = self.get_output_shape(pred_block_2, num_samples)
+        output_3 = self.get_output_shape(pred_block_3, num_samples)
+        # Concat outputs
+        outputs = [output_1, output_2, output_3]
+        outputs = torch.cat(outputs, 1)
+
         if targets is None:
-            return (pred_1, pred_2, pred_3), 0
+            return outputs
 
         else:
             # Compute losses
@@ -490,7 +511,7 @@ class Yolo_v3(nn.Module):
             # Total Loss
             loss = l1 + l2 + l3
 
-            return (pred_1, pred_2, pred_3), loss
+            return outputs, loss
 
 
 
@@ -528,5 +549,6 @@ if __name__ == '__main__':
     targets = torch.Tensor(targets)
     yolo.train()
     output, loss = yolo(x, targets=targets)
+    loss.backward()
 
     print('')
