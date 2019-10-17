@@ -110,7 +110,7 @@ class YoloLoss(nn.Module):
         # Divide (sum of detected mask that is highter than 0.75 IOU) with (sum of obj_mask)
         recall75 = torch.sum(iou75 * obj_mask) / (obj_mask.sum() + 1e-16)
 
-        metrics = {
+        self.metrics = {
             "loss": total_loss.item(),
             "x": loss_x.item(),
             "y": loss_y.item(),
@@ -127,4 +127,4 @@ class YoloLoss(nn.Module):
             "grid_size": gs,
         }
 
-        return metrics
+        return total_loss
