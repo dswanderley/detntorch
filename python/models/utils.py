@@ -9,6 +9,38 @@ Created on Wed Oct 02 21:34:01 2019
 import torch
 
 
+def get_pred_boxes(pred, anchors):
+        '''
+            Get outputs predictions and pred_boxes.
+        '''
+    # Anchors parameters
+    num_anchors = len(anchors)
+    anchor_w = anchors[:, 0:1].view((1, num_anchors, 1, 1))
+    anchor_h = anchors[:, 1:2].view((1, num_anchors, 1, 1))
+
+    # Get outputs
+    pred_x = pred[..., 0]       # Center x
+    pred_y = pred[..., 1]       # Center y
+    pred_w = pred[..., 2]       # Width
+    pred_h = pred[..., 3]       # Height
+    pred_conf = pred[..., 4]    # Conf
+    pred_cls =  pred[..., 5:]   # Cls pred.
+    gs = pred.size(-2)     # grid size
+
+    # Reference/index grids
+    grid_x = torch.arange(gs).repeat(gs, 1).view([1,1,gs,gs]).type(torch.FloatTensor)
+    grid_y = torch.arange(gs).repeat(gs, 1).t().view([1,1,gs,gs]).type(torch.FloatTensor)
+
+    # Add offset and scale with anchors
+    pred_boxes = torch.FloatTensor(pred[..., :4].shape)
+    pred_boxes[..., 0] = pred_x.data + grid_x
+    pred_boxes[..., 1] = pred_y.data + grid_y
+    pred_boxes[..., 2] = torch.exp(pred_w.data) * anchor_w
+    pred_boxes[..., 3] = torch.exp(pred_h.data) * anchor_h
+
+    return pred_x, pred_y, pred_w, pred_h, pred_conf, pred_cls, pred_boxes
+
+
 def relative_bbox_iou(w1, h1, w2, h2):
     """
     Compute the IOU given the width and the height of two bouding boxes

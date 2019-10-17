@@ -10,6 +10,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import losses
+from utils import get_pred_boxes
+
 
 class DarknetConvBlock(nn.Module):
     '''
@@ -337,6 +340,9 @@ class Darknet(nn.Module):
         self.in_channels = in_ch
         self.batch_norm = batch_norm
         self.filters = filters
+        self.stride_out_1 = 32
+        self.stride_out_2 = 16
+        self.stride_out_3 = 8
         index = 0
         # Initial Conv
         self.conv0 = DarknetConvBlock(self.in_channels, self.filters,
@@ -347,7 +353,7 @@ class Darknet(nn.Module):
                                     index=index)
         index += 1
         # First block
-        self.conv1 = DarknetBlock(self.filters, self.filters*2,
+        self.conv1 = DarknetBlock(self.filters, self.filters * 2,
                                 batch_norm=self.batch_norm,
                                 rep=1,
                                 index=index)
@@ -398,7 +404,6 @@ class Darknet(nn.Module):
                                     index=index)
         index = self.conv_up2.index_out + 1
 
-
     def forward(self, x):
         ''' Foward method '''
         x0 = self.conv0(x)
@@ -413,23 +418,30 @@ class Darknet(nn.Module):
         return x_out1, x_out2, x_out3
 
 
-
 class Yolo_v3(nn.Module):
     '''
     Yolo network
     '''
-    def __init__(self, in_ch):
+    def __init__(self, in_ch, num_classes=2, anchors=[(116,90),(156,198),(737,326)]):
         ''' Constructor '''
         super(Yolo_v3, self).__init__()
 
         # Parameters
         self.in_ch = in_ch
-        self.anchors = []
-        self.num_anchors = 3
-        self.num_classes = 2
+        self.anchors = anchors
+        self.num_anchors = len(anchors)
+        self.num_classes = num_classes
 
         # Body
         self.darknet = Darknet(in_ch)
+
+        # Scaled anchors
+        std1 = self.darknet.stride_out_1
+        self.scaled_anchors_1 = torch.FloatTensor([(a_w / std1, a_h / std1) for a_w, a_h in self.anchors])
+        std2 = self.darknet.stride_out_2
+        self.scaled_anchors_2 = torch.FloatTensor([(a_w / std2, a_h / std2) for a_w, a_h in self.anchors])
+        std3 = self.darknet.stride_out_3
+        self.scaled_anchors_3 = torch.FloatTensor([(a_w / std3, a_h / std3) for a_w, a_h in self.anchors])
 
         # Detectors
         self.yolo1 = YoloDetector(512,
@@ -442,7 +454,13 @@ class Yolo_v3(nn.Module):
                         num_classes=self.num_classes,
                         num_anchors=self.num_anchors)
 
-    def forward(self, x):
+        # Losses
+        self.loss1 = losses.YoloLoss(self.scaled_anchors_1)
+        self.loss2 = losses.YoloLoss(self.scaled_anchors_2)
+        self.loss3 = losses.YoloLoss(self.scaled_anchors_3)
+
+
+    def forward(self, x, targets=None):
         ''' Foward method '''
         self.image_size = x.shape[-1]
         # Run body
@@ -456,7 +474,24 @@ class Yolo_v3(nn.Module):
         pred_2 = self.yolo2(x_2)
         pred_3 = self.yolo3(x_3)
 
-        return pred_1, pred_2, pred_3
+        pred_block_1 = get_pred_boxes(pred_1, self.scaled_anchors_1)
+        pred_block_2 = get_pred_boxes(pred_2, self.scaled_anchors_1)
+        pred_block_3 = get_pred_boxes(pred_3, self.scaled_anchors_1)
+
+        if targets is None:
+            return (pred_1, pred_2, pred_3), 0
+
+        else:
+            # Compute losses
+            l1 = self.loss1(pred_block_1, targets)
+            l2 = self.loss2(pred_block_2, targets)
+            l3 = self.loss3(pred_block_3, targets)
+
+            # Total Loss
+            loss = l1 + l2 + l3
+
+            return (pred_1, pred_2, pred_3), loss
+
 
 
 # Main calls
@@ -484,6 +519,14 @@ if __name__ == '__main__':
     # [2, 128, 64, 64]
 
     yolo = Yolo_v3(1)
-    x_out1, x_out2, x_out3 = yolo(x)
+    #x_out1, x_out2, x_out3 = yolo(x)
+
+    targets = [
+        [0.0000, 1.0000, 0.6611, 0.4229, 0.3262, 0.4395],
+        [0.0000, 1.0000, 0.4707, 0.3711, 0.1094, 0.1133]
+    ]
+    targets = torch.Tensor(targets)
+    yolo.train()
+    output, loss = yolo(x, targets=targets)
 
     print('')

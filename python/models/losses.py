@@ -14,7 +14,8 @@ import torch
 import numpy as np
 import torch.nn as nn
 
-from models.utils import prepare_targets
+#from models.utils import prepare_targets
+from utils import prepare_targets
 
 
 class YoloLoss(nn.Module):
@@ -36,33 +37,20 @@ class YoloLoss(nn.Module):
         self.noobj_scale = 100
         self.mse_loss = nn.MSELoss()
         self.bce_loss = nn.BCELoss()
-        # Offset by grids
-        self.num_anchors = len(self.anchors)
-        self.anchor_w = self.anchors[:, 0:1].view((1, self.num_anchors, 1, 1))
-        self.anchor_h = self.anchors[:, 1:2].view((1, self.num_anchors, 1, 1))
 
 
     def forward(self, pred, targets):
-
         # Get outputs
-        pred_x = pred[..., 0]       # Center x
-        pred_y = pred[..., 1]       # Center y
-        pred_w = pred[..., 2]       # Width
-        pred_h = pred[..., 3]       # Height
-        pred_conf = pred[..., 4]    # Conf
-        pred_cls =  pred[..., 5:]   # Cls pred.
-        gs = pred.size(-2)     # grid size
-
-        # Reference/index grids
-        grid_x = torch.arange(gs).repeat(gs, 1).view([1,1,gs,gs]).type(torch.FloatTensor)
-        grid_y = torch.arange(gs).repeat(gs, 1).t().view([1,1,gs,gs]).type(torch.FloatTensor)
+        pred_x = pred[0]       # Center x
+        pred_y = pred[1]       # Center y
+        pred_w = pred[2]       # Width
+        pred_h = pred[3]      # Height
+        pred_conf = pred[4]    # Conf
+        pred_cls =  pred[5]   # Cls pred.
+        gs = pred_x.size(-1) # grid size
 
         # Add offset and scale with anchors
-        pred_boxes = torch.FloatTensor(pred[..., :4].shape)
-        pred_boxes[..., 0] = pred_x.data + grid_x
-        pred_boxes[..., 1] = pred_y.data + grid_y
-        pred_boxes[..., 2] = torch.exp(pred_w.data) * self.anchor_w
-        pred_boxes[..., 3] = torch.exp(pred_h.data) * self.anchor_h
+        pred_boxes = pred[6]
 
         # Bouding boxes scores
         iou_scores, class_pred, obj_detn, noobj_detn, bb_x, bb_y, bb_w, bb_h, tcls, tconf = prepare_targets(
