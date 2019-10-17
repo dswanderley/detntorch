@@ -10,9 +10,9 @@ import torch
 
 
 def get_pred_boxes(pred, anchors):
-        '''
-            Get outputs predictions and pred_boxes.
-        '''
+    '''
+        Get outputs predictions and pred_boxes.
+    '''
     # Anchors parameters
     num_anchors = len(anchors)
     anchor_w = anchors[:, 0:1].view((1, num_anchors, 1, 1))
