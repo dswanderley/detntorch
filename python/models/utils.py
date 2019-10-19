@@ -9,6 +9,18 @@ Created on Wed Oct 02 21:34:01 2019
 import torch
 
 
+def central_to_corners_coord(x):
+    '''
+        From (center x, center y, width, height) to (x1, y1, x2, y2)
+    '''
+    y = x.new(x.shape)
+    y[..., 0] = x[..., 0] - x[..., 2] / 2
+    y[..., 1] = x[..., 1] - x[..., 3] / 2
+    y[..., 2] = x[..., 0] + x[..., 2] / 2
+    y[..., 3] = x[..., 1] + x[..., 3] / 2
+    return y
+
+
 def get_pred_boxes(pred, anchors):
     '''
         Get outputs predictions and pred_boxes.
@@ -50,13 +62,20 @@ def relative_bbox_iou(w1, h1, w2, h2):
     return inter_area / union_area
 
 
-def bbox_iou(box1, box2):
+def bbox_iou(box1, box2, x1y1x2y2=True):
     """
     Returns the IoU of two bounding boxes
     """
-    # Get the coordinates of bounding boxes
-    b1_x1, b1_y1, b1_x2, b1_y2 = box1[:, 0], box1[:, 1], box1[:, 2], box1[:, 3]
-    b2_x1, b2_y1, b2_x2, b2_y2 = box2[:, 0], box2[:, 1], box2[:, 2], box2[:, 3]
+    if not x1y1x2y2:
+        # Transform from center and width to exact coordinates
+        b1_x1, b1_x2 = box1[:, 0] - box1[:, 2] / 2, box1[:, 0] + box1[:, 2] / 2
+        b1_y1, b1_y2 = box1[:, 1] - box1[:, 3] / 2, box1[:, 1] + box1[:, 3] / 2
+        b2_x1, b2_x2 = box2[:, 0] - box2[:, 2] / 2, box2[:, 0] + box2[:, 2] / 2
+        b2_y1, b2_y2 = box2[:, 1] - box2[:, 3] / 2, box2[:, 1] + box2[:, 3] / 2
+    else:
+        # Get the coordinates of bounding boxes
+        b1_x1, b1_y1, b1_x2, b1_y2 = box1[:, 0], box1[:, 1], box1[:, 2], box1[:, 3]
+        b2_x1, b2_y1, b2_x2, b2_y2 = box2[:, 0], box2[:, 1], box2[:, 2], box2[:, 3]
 
     # get the corrdinates of the intersection rectangle
     inter_rect_x1 = torch.max(b1_x1, b2_x1)
@@ -165,10 +184,50 @@ def prepare_targets(pred_boxes, pred_cls, target, anchors, ignore_thresh):
                                             ).float()
     iou_scores[batch_idx, best_n, patch_j, patch_i] = bbox_iou(
                                                 pred_boxes[batch_idx, best_n, patch_j, patch_i],
-                                                target_boxes
+                                                target_boxes,
+                                                x1y1x2y2=False
                                                 )
     tconf = obj.float()
     return iou_scores, class_pred, obj, no_obj, bb_x, bb_y, bb_w, bb_h, tcls, tconf
+
+
+def get_batch_statistics(outputs, targets, iou_threshold):
+    """ Compute true positives, predicted scores and predicted labels per sample """
+    batch_metrics = []
+    for sample_i in range(len(outputs)):
+
+        if outputs[sample_i] is None:
+            continue
+
+        output = outputs[sample_i]
+        pred_boxes = output[:, :4]
+        pred_scores = output[:, 4]
+        pred_labels = output[:, -1]
+
+        true_positives = np.zeros(pred_boxes.shape[0])
+
+        annotations = targets[targets[:, 0] == sample_i][:, 1:]
+        target_labels = annotations[:, 0] if len(annotations) else []
+        if len(annotations):
+            detected_boxes = []
+            target_boxes = annotations[:, 1:]
+
+            for pred_i, (pred_box, pred_label) in enumerate(zip(pred_boxes, pred_labels)):
+
+                # If targets are found break
+                if len(detected_boxes) == len(annotations):
+                    break
+
+                # Ignore if label is not one of the target labels
+                if pred_label not in target_labels:
+                    continue
+
+                iou, box_index = bbox_iou(pred_box.unsqueeze(0), target_boxes).max(0)
+                if iou >= iou_threshold and box_index not in detected_boxes:
+                    true_positives[pred_i] = 1
+                    detected_boxes += [box_index]
+        batch_metrics.append([true_positives, pred_scores, pred_labels])
+    return batch_metrics
 
 
 def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
@@ -180,12 +239,7 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
     """
 
     # From (center x, center y, width, height) to (x1, y1, x2, y2)
-    box_corner = prediction.new(prediction.shape)
-    box_corner[:, :, 0] = prediction[:, :, 0] - prediction[:, :, 2] / 2
-    box_corner[:, :, 1] = prediction[:, :, 1] - prediction[:, :, 3] / 2
-    box_corner[:, :, 2] = prediction[:, :, 0] + prediction[:, :, 2] / 2
-    box_corner[:, :, 3] = prediction[:, :, 1] + prediction[:, :, 3] / 2
-    prediction[:, :, :4] = box_corner[:, :, :4]
+    prediction[..., :4] = central_to_corners_coord(prediction[..., :4])
 
     output = [None for _ in range(len(prediction))]
     for image_i, image_pred in enumerate(prediction):
