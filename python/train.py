@@ -1,0 +1,214 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Nov 19 13:04:11 2019
+@author: Diego Wanderley
+@python: 3.6
+@description: Train script with training class
+"""
+
+import torch
+from torch.utils.data import DataLoader
+from torchvision import transforms
+from torch.autograd import Variable
+import torch.optim as optim
+
+from models.utils import non_max_suppression, central_to_corners_coord
+
+class Training:
+    """
+        Training classe
+    """
+
+    def __init__(self, model, device, train_set, valid_set, optim,
+                 train_name='yolov3', logger=None):
+        '''
+            Training class - Constructor
+        '''
+        self.model = model
+        self.device = device
+        self.train_set = train_set
+        self.valid_set = valid_set
+        self.optimizer = optim
+        self.train_name = train_name
+        self.logger = logger
+        self.iou_thres = 0.5
+        self.conf_thres = 0.5
+        self.nms_thres = 0.5
+        self.metrics = metrics = [
+                        "grid_size",
+                        "loss",
+                        "x",
+                        "y",
+                        "w",
+                        "h",
+                        "conf",
+                        "cls",
+                        "cls_acc",
+                        "recall50",
+                        "recall75",
+                        "precision",
+                        "conf_obj",
+                        "conf_noobj",
+                    ]
+
+
+    def _saveweights(self, state):
+        '''
+            Save network weights.
+            Arguments:
+            @state (dict): parameters of the network
+        '''
+        path = '../weights/'
+        filename = path + self.train_name + '_weights.pth.tar'
+        torch.save(state, filename)
+
+
+    def _iterate_train(self, data_loader):
+
+        # Init loss count
+        loss_train_sum = 0
+        data_train_len = len(self.dataset_train)
+
+        # Active train
+        self.model.train()
+        self.model = self.model.to(self.device)
+
+        # Batch iteration - Training dataset
+        for batch_idx, (names, imgs, targets) in enumerate(data_loader):
+
+            imgs = Variable(imgs.to(device))
+            targets = Variable(targets.to(device), requires_grad=False)
+            # Forward and loss
+            loss, outputs = model(imgs, targets)
+            loss.backward()
+            # Optmize
+            self.optimizer.zero_grad()
+            self.optimizer.step()
+
+            # Update epoch loss
+            loss_train_sum += len(imgs) * loss.item()
+
+        # Calculate average loss per epoch
+        avg_loss_train = loss_train_sum / data_train_len
+
+        return avg_loss_train
+
+
+    def _iterate_val(self, data_loader):
+
+        # Init loss count
+        loss_val_sum = 0
+        data_val_len = len(self.dataset_val)
+
+        # To evaluate on validation set
+        self.model.eval()
+        self.model = self.model.to(self.device)
+
+        sample_metrics = []  # List of (TP, confs, pred)
+
+        # Batch iteration - Validation dataset
+        for batch_idx, (names, imgs, targets) in enumerate(data_loader):
+            # Images
+            imgs = Variable(imgs.to(self.device), requires_grad=False)
+            img_size = imgs.shape(-1)
+            batch_size = imgs.shape(0)
+            # Labels
+            labels += targets[:, 1].tolist()
+            # Rescale target
+            targets[:, 2:] = central_to_corners_coord(targets[:, 2:])
+            targets[:, 2:] *= img_size
+
+            with torch.no_grad():
+                outputs = model(imgs)
+                outputs = non_max_suppression(outputs,
+                                            conf_thres=self.conf_thres,
+                                                nms_thres=self.nms_thres)
+
+            sample_metrics += get_batch_statistics(outputs,
+                                                    targets,
+                                                    iou_threshold=self.iou_thres)
+
+        # Concatenate sample statistics
+        true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
+        precision, recall, AP, f1, ap_class = ap_per_class(true_positives, pred_scores, pred_labels, labels)
+
+        evaluation_metrics = [
+                ("val_precision", precision.mean()),
+                ("val_recall", recall.mean()),
+                ("val_mAP", AP.mean()),
+                ("val_f1", f1.mean()),
+            ]
+
+        return evaluation_metrics
+
+
+    def _logging(self, epoch, avg_loss_train, val_evaluation):
+
+        # 1. Log scalar values (scalar summary)
+        info = val_evaluation
+        info.append(('avg_loss_train', avg_loss_train))
+        for tag, value in info.items():
+            self.logger.scalar_summary(tag, value, epoch+1)
+
+        # 2. Log values and gradients of the parameters (histogram summary)
+        for tag, value in self.model.named_parameters():
+            tag = tag.replace('.', '/')
+            self.logger.histo_summary(tag, value.data.cpu().numpy(), epoch+1)
+            if not value.grad is None:
+                self.logger.histo_summary(tag +'/grad', value.grad.data.cpu().numpy(), epoch+1)
+
+
+    def train(self, epochs=100, batch_size=4):
+        '''
+        Train network function
+        Arguments:
+            @param net: network model
+            @param epochs: number of training epochs (int)
+            @param batch_size: batch size (int)
+        '''
+
+        # Load Dataset
+        data_loader_train = DataLoader(self.dataset_train, batch_size=batch_size, shuffle=True)
+        data_loader_val = DataLoader(self.dataset_val, batch_size=1, shuffle=False)
+
+        # Define parameters
+        best_precision = 0    # Init best loss with a too high value
+
+        # Run epochs
+        for epoch in range(epochs):
+            print('Starting epoch {}/{}.'.format(epoch + 1, epochs))
+
+            # ========================= Training =============================== #
+            avg_loss_train = self._iterate_train(data_loader_train)
+            print('training loss:  {:f}'.format(avg_loss_train))
+
+            # ========================= Validation ============================= #
+            val_evaluation = self._iterate_val(data_loader_val)
+            val_precision = val_evaluation[0]
+            print(val_precision[0] + ': {:f}'.format(val_precision[1]))
+            print('')
+
+            # ======================== Save weights ============================ #
+            if best_precision < val_precision[0]:
+                best_precision = val_precision[0]
+                # save
+                self._saveweights({
+                            'epoch': epoch + 1,
+                            'n_input': ref_image_train.shape[0],
+                            'n_classes': ref_pred_train.shape[0],
+                            'state_dict': self.model.state_dict(),
+                            'best_precision': best_precision,
+                            'optimizer': str(self.optimizer),
+                            'optimizer_dict': self.optimizer.state_dict(),
+                            'device': str(self.device)
+                            })
+
+            # ====================== Tensorboard Logging ======================= #
+            if self.logger:
+                self._logging(epoch, avg_loss_train, val_evaluation)
+
+
+if __name__ == "__main__":
+
+
+    print('')
