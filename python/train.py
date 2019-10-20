@@ -8,6 +8,7 @@ Created on Sat Nov 19 13:04:11 2019
 
 import torch
 import torch.optim as optim
+import numpy as np
 
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -21,11 +22,6 @@ from models.utils import non_max_suppression, central_to_corners_coord, get_batc
 from utils.datasets import OvaryDataset
 from utils.logger import Logger
 
-import warnings
-warnings.simplefilter("ignore", FutureWarning)
-warnings.simplefilter("ignore", DeprecationWarning)
-warnings.simplefilter("ignore", UserWarning)
-warnings.simplefilter("ignore", ResourceWarning)
 
 
 class Training:
