@@ -6,14 +6,17 @@ Created on Sat Sep 14 19:29:35 2019
 @description: CNN modules.
 """
 
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import models.losses as losses
-#import losses
-from models.utils import get_pred_boxes
-#from utils import get_pred_boxes
+try:
+    import models.losses as losses
+    from models.utils import get_pred_boxes
+except:
+    import losses
+    from utils import get_pred_boxes
 
 
 class DarknetConvBlock(nn.Module):
