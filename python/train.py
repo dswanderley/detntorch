@@ -91,8 +91,9 @@ class Training:
             imgs = Variable(imgs.to(device))
             targets = Variable(targets.to(device), requires_grad=False)
             # Forward and loss
-            loss, outputs = self.model(imgs, targets=targets)
+            output, loss = self.model(imgs, targets=targets)
             loss.backward()
+
             # Optmize
             self.optimizer.zero_grad()
             self.optimizer.step()
@@ -257,7 +258,7 @@ if __name__ == "__main__":
                            out_tuple=True)
 
     # Optmization
-    optmizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 
      # Set logs folder
@@ -265,7 +266,7 @@ if __name__ == "__main__":
 
     # Run training
     training = Training(model, device, dataset_train, dataset_val,
-                        optmizer, logger=logger, train_name=train_name)
+                        optimizer, logger=logger, train_name=train_name)
     training.train(epochs=n_epochs, batch_size=batch_size)
 
     print('')

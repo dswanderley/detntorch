@@ -522,6 +522,8 @@ class Yolo_v3(nn.Module):
 # Main calls
 if __name__ == '__main__':
 
+    import torch.optim as optim
+
     # Images
     x = torch.randn(2, 1, 512, 512)
 
@@ -544,6 +546,7 @@ if __name__ == '__main__':
     # [2, 128, 64, 64]
 
     yolo = Yolo_v3(1)
+    optimizer = optim.Adam(yolo.parameters(), lr=0.001)
     #x_out1, x_out2, x_out3 = yolo(x)
 
     targets = [
@@ -552,7 +555,11 @@ if __name__ == '__main__':
     ]
     targets = torch.Tensor(targets)
     yolo.train()
-    output, loss = yolo(x, targets=targets)
-    loss.backward()
+    for _ in range(0,2):
+        output, loss = yolo(x, targets=targets)
+        loss.backward()
+
+        optimizer.zero_grad()
+        optimizer.step()
 
     print('')
