@@ -20,6 +20,11 @@ from models.utils import non_max_suppression, central_to_corners_coord
 from utils.datasets import OvaryDataset
 from utils.logger import Logger
 
+import warnings
+warnings.simplefilter("ignore", DeprecationWarning)
+warnings.simplefilter("ignore", UserWarning)
+warnings.simplefilter("ignore", ResourceWarning)
+
 
 class Training:
     """
