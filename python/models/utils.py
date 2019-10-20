@@ -7,8 +7,10 @@ Created on Wed Oct 02 21:34:01 2019
 """
 
 import torch
-
 import warnings
+
+import numpy as np
+
 warnings.simplefilter("ignore", DeprecationWarning)
 warnings.simplefilter("ignore", UserWarning)
 warnings.simplefilter("ignore", ResourceWarning)
