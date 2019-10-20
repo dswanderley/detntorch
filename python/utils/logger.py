@@ -7,6 +7,8 @@ try:
     from StringIO import StringIO  # Python 2.7
 except ImportError:
     from io import BytesIO         # Python 3.x
+import warnings
+warnings.simplefilter("ignore", FutureWarning)
 
 
 class Logger(object):

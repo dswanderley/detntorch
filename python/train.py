@@ -22,6 +22,7 @@ from utils.datasets import OvaryDataset
 from utils.logger import Logger
 
 import warnings
+warnings.simplefilter("ignore", FutureWarning)
 warnings.simplefilter("ignore", DeprecationWarning)
 warnings.simplefilter("ignore", UserWarning)
 warnings.simplefilter("ignore", ResourceWarning)
