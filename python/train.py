@@ -91,7 +91,7 @@ class Training:
             imgs = Variable(imgs.to(device))
             targets = Variable(targets.to(device), requires_grad=False)
             # Forward and loss
-            loss, outputs = self.model(imgs, targets)
+            loss, outputs = self.model(imgs, targets=targets)
             loss.backward()
             # Optmize
             self.optimizer.zero_grad()
