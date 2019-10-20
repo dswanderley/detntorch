@@ -7,12 +7,19 @@ Created on Sat Nov 19 13:04:11 2019
 """
 
 import torch
+import torch.optim as optim
+
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torch.autograd import Variable
-import torch.optim as optim
 
+import utils.transformations as tsfrm
+
+from models.modules import Yolo_v3
 from models.utils import non_max_suppression, central_to_corners_coord
+from utils.datasets import OvaryDataset
+from utils.logger import Logger
+
 
 class Training:
     """
@@ -34,22 +41,22 @@ class Training:
         self.iou_thres = 0.5
         self.conf_thres = 0.5
         self.nms_thres = 0.5
-        self.metrics = metrics = [
-                        "grid_size",
-                        "loss",
-                        "x",
-                        "y",
-                        "w",
-                        "h",
-                        "conf",
-                        "cls",
-                        "cls_acc",
-                        "recall50",
-                        "recall75",
-                        "precision",
-                        "conf_obj",
-                        "conf_noobj",
-                    ]
+        self.metrics  = [
+            "grid_size",
+            "loss",
+            "x",
+            "y",
+            "w",
+            "h",
+            "conf",
+            "cls",
+            "cls_acc",
+            "recall50",
+            "recall75",
+            "precision",
+            "conf_obj",
+            "conf_noobj",
+        ]
 
 
     def _saveweights(self, state):
@@ -67,7 +74,7 @@ class Training:
 
         # Init loss count
         loss_train_sum = 0
-        data_train_len = len(self.dataset_train)
+        data_train_len = len(self.train_set)
 
         # Active train
         self.model.train()
@@ -98,7 +105,7 @@ class Training:
 
         # Init loss count
         loss_val_sum = 0
-        data_val_len = len(self.dataset_val)
+        data_val_len = len(self.valid_set)
 
         # To evaluate on validation set
         self.model.eval()
@@ -168,8 +175,10 @@ class Training:
         '''
 
         # Load Dataset
-        data_loader_train = DataLoader(self.dataset_train, batch_size=batch_size, shuffle=True)
-        data_loader_val = DataLoader(self.dataset_val, batch_size=1, shuffle=False)
+        data_loader_train = DataLoader(self.train_set, batch_size=batch_size, shuffle=True,
+                                        collate_fn=self.train_set.collate_fn_yolo)
+        data_loader_val = DataLoader(self.valid_set, batch_size=1, shuffle=False,
+                                        collate_fn=self.valid_set.collate_fn_yolo)
 
         # Define parameters
         best_precision = 0    # Init best loss with a too high value
@@ -193,15 +202,13 @@ class Training:
                 best_precision = val_precision[0]
                 # save
                 self._saveweights({
-                            'epoch': epoch + 1,
-                            'n_input': ref_image_train.shape[0],
-                            'n_classes': ref_pred_train.shape[0],
-                            'state_dict': self.model.state_dict(),
-                            'best_precision': best_precision,
-                            'optimizer': str(self.optimizer),
-                            'optimizer_dict': self.optimizer.state_dict(),
-                            'device': str(self.device)
-                            })
+                'epoch': epoch + 1,
+                'state_dict': self.model.state_dict(),
+                'best_precision': best_precision,
+                'optimizer': str(self.optimizer),
+                'optimizer_dict': self.optimizer.state_dict(),
+                'device': str(self.device)
+                })
 
             # ====================== Tensorboard Logging ======================= #
             if self.logger:
@@ -210,5 +217,50 @@ class Training:
 
 if __name__ == "__main__":
 
+    from utils.aux import gettrainname
+
+    # Input parameters
+    n_epochs = 500
+    batch_size = 4
+    input_channels = 1
+    network_name = 'Yolo_v3'
+    train_name = gettrainname(network_name)
+
+    # Load network model
+    model = Yolo_v3(input_channels)
+
+    # Load CUDA if exist
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    # Transformation parameters
+    transform = tsfrm.Compose([tsfrm.RandomHorizontalFlip(p=0.5),
+                           tsfrm.RandomVerticalFlip(p=0.5),
+                           tsfrm.RandomAffine(90, translate=(0.15, 0.15),
+                            scale=(0.75, 1.5), resample=3, fillcolor=0)
+                           ])
+
+    # Dataset definitions
+    dataset_train = OvaryDataset(im_dir='../datasets/ovarian/im/train/',
+                           gt_dir='../datasets/ovarian/gt/train/',
+                           clahe=False, transform=False,
+                           ovary_inst=False,
+                           out_tuple=True)
+    dataset_val = OvaryDataset(im_dir='../datasets/ovarian/im/val/',
+                           gt_dir='../datasets/ovarian/gt/val/',
+                           clahe=False, transform=False,
+                           ovary_inst=False,
+                           out_tuple=True)
+
+    # Optmization
+    optmizer = optim.Adam(model.parameters(), lr=0.001)
+
+
+     # Set logs folder
+    logger = Logger('../logs/' + train_name + '/')
+
+    # Run training
+    training = Training(model, device, dataset_train, dataset_val,
+                        optmizer, logger=logger, train_name=train_name)
+    training.train(epochs=n_epochs, batch_size=batch_size)
 
     print('')
