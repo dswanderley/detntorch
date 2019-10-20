@@ -10,9 +10,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import losses
-#from models.utils import get_pred_boxes
-from utils import get_pred_boxes
+import models.losses as losses
+#import losses
+from models.utils import get_pred_boxes
+#from utils import get_pred_boxes
 
 
 class DarknetConvBlock(nn.Module):

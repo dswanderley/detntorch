@@ -14,8 +14,8 @@ import torch
 import numpy as np
 import torch.nn as nn
 
-#from models.utils import prepare_targets
-from utils import prepare_targets
+from models.utils import prepare_targets
+#from utils import prepare_targets
 
 
 class YoloLoss(nn.Module):
