@@ -84,7 +84,7 @@ class Training:
         self.model = self.model.to(self.device)
 
         # Batch iteration - Training dataset
-        for batch_idx, (names, imgs, targets) in enumerate(tqdm(data_loader)):
+        for batch_idx, (names, imgs, targets) in enumerate(tqdm(data_loader, desc="Training epoch")):
 
             imgs = Variable(imgs.to(device))
             targets = Variable(targets.to(device), requires_grad=False)
@@ -159,7 +159,7 @@ class Training:
         # 1. Log scalar values (scalar summary)
         info = val_evaluation
         info.append(('avg_loss_train', avg_loss_train))
-        for tag, value in info.items():
+        for tag, value in info:
             self.logger.scalar_summary(tag, value, epoch+1)
 
         # 2. Log values and gradients of the parameters (histogram summary)
