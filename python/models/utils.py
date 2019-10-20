@@ -7,6 +7,7 @@ Created on Wed Oct 02 21:34:01 2019
 """
 
 import torch
+import tqdm
 import warnings
 
 import numpy as np
