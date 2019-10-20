@@ -203,8 +203,8 @@ class Training:
             print('')
 
             # ======================== Save weights ============================ #
-            if best_precision < val_precision[0]:
-                best_precision = val_precision[0]
+            if best_precision < val_precision[1]:
+                best_precision = val_precision[1]
                 # save
                 self._saveweights({
                 'epoch': epoch + 1,
