@@ -17,7 +17,7 @@ from tqdm import tqdm
 import utils.transformations as tsfrm
 
 from models.modules import Yolo_v3
-from models.utils import non_max_suppression, central_to_corners_coord
+from models.utils import non_max_suppression, central_to_corners_coord, get_batch_statistics
 from utils.datasets import OvaryDataset
 from utils.logger import Logger
 
@@ -118,14 +118,15 @@ class Training:
         self.model.eval()
         self.model = self.model.to(self.device)
 
-        sample_metrics = []  # List of (TP, confs, pred)
+        sample_metrics = [] # List of (TP, confs, pred)
+        labels = []         # to recieve targets
 
         # Batch iteration - Validation dataset
         for batch_idx, (names, imgs, targets) in enumerate(data_loader):
             # Images
             imgs = Variable(imgs.to(self.device), requires_grad=False)
-            img_size = imgs.shape(-1)
-            batch_size = imgs.shape(0)
+            img_size = imgs.shape[-1]
+            batch_size = imgs.shape[0]
             # Labels
             labels += targets[:, 1].tolist()
             # Rescale target
