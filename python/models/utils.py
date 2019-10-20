@@ -8,6 +8,11 @@ Created on Wed Oct 02 21:34:01 2019
 
 import torch
 
+import warnings
+warnings.simplefilter("ignore", DeprecationWarning)
+warnings.simplefilter("ignore", UserWarning)
+warnings.simplefilter("ignore", ResourceWarning)
+
 
 def central_to_corners_coord(x):
     '''
