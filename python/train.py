@@ -86,7 +86,7 @@ class Training:
             imgs = Variable(imgs.to(device))
             targets = Variable(targets.to(device), requires_grad=False)
             # Forward and loss
-            loss, outputs = model(imgs, targets)
+            loss, outputs = self.model(imgs, targets)
             loss.backward()
             # Optmize
             self.optimizer.zero_grad()
@@ -126,7 +126,7 @@ class Training:
             targets[:, 2:] *= img_size
 
             with torch.no_grad():
-                outputs = model(imgs)
+                outputs = self.model(imgs)
                 outputs = non_max_suppression(outputs,
                                             conf_thres=self.conf_thres,
                                                 nms_thres=self.nms_thres)
