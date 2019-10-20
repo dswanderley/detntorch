@@ -12,6 +12,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torch.autograd import Variable
+from tqdm import tqdm
 
 import utils.transformations as tsfrm
 
@@ -86,7 +87,7 @@ class Training:
         self.model = self.model.to(self.device)
 
         # Batch iteration - Training dataset
-        for batch_idx, (names, imgs, targets) in enumerate(data_loader):
+        for batch_idx, (names, imgs, targets) in enumerate(tqdm(data_loader)):
 
             imgs = Variable(imgs.to(device))
             targets = Variable(targets.to(device), requires_grad=False)
