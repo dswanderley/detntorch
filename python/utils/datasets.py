@@ -69,10 +69,9 @@ class OvaryDataset(Dataset):
         if self.out_tuple is False:
             self.encods[3] = False
 
-
         ldir_im = set(x for x in os.listdir(self.im_dir))
         ldir_gt = set(x for x in os.listdir(self.gt_dir))
-        self.images_name = list(ldir_im.intersection(ldir_gt))
+        self.images_name  = [ fname for fname in list(ldir_im.intersection(ldir_gt)) if fname[0] is not '.']
 
 
     def __len__(self):
