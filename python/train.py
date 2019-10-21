@@ -18,6 +18,7 @@ from tqdm import tqdm
 import utils.transformations as tsfrm
 
 from models.modules import Yolo_net
+from models.yolo import Darknet
 from models.utils import *
 from utils.datasets import OvaryDataset
 from utils.logger import Logger
@@ -231,8 +232,12 @@ if __name__ == "__main__":
     network_name = 'Yolo_v3'
     train_name = gettrainname(network_name)
 
+    data_config_path = 'config/ovarian.data'
+    mode_config_path = 'config/yolov3.cfg'
+
     # Load network model
-    model = Yolo_net(input_channels)
+    #model = Yolo_net(input_channels)
+    model = Darknet(mode_config_path)
 
     # Load CUDA if exist
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

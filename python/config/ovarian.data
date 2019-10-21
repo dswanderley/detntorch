@@ -1,0 +1,4 @@
+classes=2
+gt=data/ovarian/gt/
+im=data/ovarian/gt/
+names=data/ovarian/classes.names
