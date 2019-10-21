@@ -17,6 +17,10 @@ warnings.simplefilter("ignore", UserWarning)
 warnings.simplefilter("ignore", ResourceWarning)
 
 
+def to_cpu(tensor):
+    return tensor.detach().cpu()
+
+
 def central_to_corners_coord(x):
     '''
         From (center x, center y, width, height) to (x1, y1, x2, y2)

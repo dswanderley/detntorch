@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 import utils.transformations as tsfrm
 
-from models.modules import Yolo_v3
+from models.modules import Yolo_net
 from models.utils import *
 from utils.datasets import OvaryDataset
 from utils.logger import Logger
@@ -232,7 +232,7 @@ if __name__ == "__main__":
     train_name = gettrainname(network_name)
 
     # Load network model
-    model = Yolo_v3(input_channels)
+    model = Yolo_net(input_channels)
 
     # Load CUDA if exist
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
