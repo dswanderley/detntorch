@@ -42,6 +42,7 @@ class Training:
         self.optimizer = optim
         self.train_name = train_name
         self.logger = logger
+        self.gradient_accumulations = 2
         self.iou_thres = 0.5
         self.conf_thres = 0.5
         self.nms_thres = 0.5
@@ -61,6 +62,7 @@ class Training:
             "conf_obj",
             "conf_noobj",
         ]
+        self.epoch = 0
 
 
     def _saveweights(self, state):
@@ -86,12 +88,18 @@ class Training:
 
         # Batch iteration - Training dataset
         for batch_idx, (names, imgs, targets) in enumerate(tqdm(data_loader, desc="Training epoch")):
+            batches_done = len(dataloader) * self.epoch + batch_idx
 
             imgs = Variable(imgs.to(device))
             targets = Variable(targets.to(device), requires_grad=False)
             # Forward and loss
             output, loss = self.model(imgs, targets=targets)
             loss.backward()
+
+            if batches_done % self.gradient_accumulations:
+                # Accumulates gradient before each step
+                optimizer.step()
+                optimizer.zero_grad()
 
             # Optmize
             self.optimizer.zero_grad()
@@ -190,8 +198,8 @@ class Training:
         best_precision = 0    # Init best loss with a too high value
 
         # Run epochs
-        for epoch in range(epochs):
-            print('Starting epoch {}/{}.'.format(epoch + 1, epochs))
+        for e in range(epochs):
+            print('Starting epoch {}/{}.'.format(self.epoch + 1, epochs))
 
             # ========================= Training =============================== #
             avg_loss_train = self._iterate_train(data_loader_train)
@@ -208,7 +216,7 @@ class Training:
                 best_precision = val_precision[1]
                 # save
                 self._saveweights({
-                'epoch': epoch + 1,
+                'epoch': self.epoch + 1,
                 'state_dict': self.model.state_dict(),
                 'best_precision': best_precision,
                 'optimizer': str(self.optimizer),
@@ -218,7 +226,7 @@ class Training:
 
             # ====================== Tensorboard Logging ======================= #
             if self.logger:
-                self._logging(epoch, avg_loss_train, val_evaluation)
+                self._logging(self.epoch, avg_loss_train, val_evaluation)
 
 
 if __name__ == "__main__":
@@ -252,7 +260,7 @@ if __name__ == "__main__":
     # Dataset definitions
     dataset_train = OvaryDataset(im_dir='../datasets/ovarian/im/train/',
                            gt_dir='../datasets/ovarian/gt/train/',
-                           clahe=False, transform=False,
+                           clahe=False, transform=transform,
                            ovary_inst=False,
                            out_tuple=True)
     dataset_val = OvaryDataset(im_dir='../datasets/ovarian/im/val/',
