@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat Nov 19 13:04:11 2019
+Created on Sat Oct 19 13:04:11 2019
 @author: Diego Wanderley
 @python: 3.6
 @description: Train script with training class
@@ -17,6 +17,7 @@ from tqdm import tqdm
 
 import utils.transformations as tsfrm
 
+from test import evaluate
 from models.modules import Yolo_net
 from models.yolo import Darknet
 from models.utils import *
@@ -88,7 +89,7 @@ class Training:
 
         # Batch iteration - Training dataset
         for batch_idx, (names, imgs, targets) in enumerate(tqdm(data_loader, desc="Training epoch")):
-            batches_done = len(dataloader) * self.epoch + batch_idx
+            batches_done = len(data_loader) * self.epoch + batch_idx
 
             imgs = Variable(imgs.to(device))
             targets = Variable(targets.to(device), requires_grad=False)
@@ -98,12 +99,8 @@ class Training:
 
             if batches_done % self.gradient_accumulations:
                 # Accumulates gradient before each step
-                optimizer.step()
-                optimizer.zero_grad()
-
-            # Optmize
-            self.optimizer.zero_grad()
-            self.optimizer.step()
+                self.optimizer.step()
+                self.optimizer.zero_grad()
 
             # Update epoch loss
             loss_train_sum += len(imgs) * loss.item()
@@ -116,49 +113,13 @@ class Training:
 
     def _iterate_val(self, data_loader):
 
-        # Init loss count
-        loss_val_sum = 0
-        data_val_len = len(self.valid_set)
-
-        # To evaluate on validation set
-        self.model.eval()
-        self.model = self.model.to(self.device)
-
-        sample_metrics = [] # List of (TP, confs, pred)
-        labels = []         # to recieve targets
-
-        # Batch iteration - Validation dataset
-        for batch_idx, (names, imgs, targets) in enumerate(data_loader):
-            # Images
-            imgs = Variable(imgs.to(self.device), requires_grad=False)
-            img_size = imgs.shape[-1]
-            batch_size = imgs.shape[0]
-            # Labels
-            labels += targets[:, 1].tolist()
-            # Rescale target
-            targets[:, 2:] = central_to_corners_coord(targets[:, 2:])
-            targets[:, 2:] *= img_size
-
-            with torch.no_grad():
-                outputs = self.model(imgs)
-                outputs = non_max_suppression(outputs,
-                                            conf_thres=self.conf_thres,
-                                                nms_thres=self.nms_thres)
-
-            sample_metrics += get_batch_statistics(outputs,
-                                                    targets,
-                                                    iou_threshold=self.iou_thres)
-
-        # Concatenate sample statistics
-        true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
-        precision, recall, AP, f1, ap_class = ap_per_class(true_positives, pred_scores, pred_labels, labels)
-
-        evaluation_metrics = [
-                ("val_precision", precision.mean()),
-                ("val_recall", recall.mean()),
-                ("val_mAP", AP.mean()),
-                ("val_f1", f1.mean()),
-            ]
+        evaluation_metrics = evaluate(self.model,
+                                        data_loader,
+                                        self.iou_thres,
+                                        self.conf_thres,
+                                        self.nms_thres,
+                                        1, # batch_size
+                                        self.device)
 
         return evaluation_metrics
 
@@ -199,6 +160,7 @@ class Training:
 
         # Run epochs
         for e in range(epochs):
+            self.epoch = e
             print('Starting epoch {}/{}.'.format(self.epoch + 1, epochs))
 
             # ========================= Training =============================== #
