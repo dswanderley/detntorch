@@ -113,7 +113,7 @@ class Training:
 
     def _iterate_val(self, data_loader):
 
-        evaluation_metrics = evaluate(self.model,
+        evaluation_metrics, ap_class = evaluate(self.model,
                                         data_loader,
                                         self.iou_thres,
                                         self.conf_thres,

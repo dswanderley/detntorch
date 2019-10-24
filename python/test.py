@@ -66,7 +66,7 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, batch_size, d
             ("val_f1", f1.mean()),
         ]
 
-    return evaluation_metrics
+    return evaluation_metrics, ap_class
 
 
 if __name__ == "__main__":
@@ -117,7 +117,7 @@ if __name__ == "__main__":
 
     print("Compute mAP...")
 
-    evaluation_metrics = evaluate(model,
+    evaluation_metrics, ap_class = evaluate(model,
                                 data_loader,
                                 opt.iou_thres,
                                 opt.conf_thres,
