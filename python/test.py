@@ -14,6 +14,8 @@ import numpy as np
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from tqdm import tqdm
+from PIL import Image
+from skimage.draw import polygon_perimeter
 
 from models.modules import Yolo_net
 from models.yolo import Darknet
@@ -22,7 +24,7 @@ from utils.datasets import OvaryDataset
 from utils.logger import Logger
 
 
-def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, batch_size, device):
+def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, batch_size, device, print=False):
     """
         Evaluate model
     """
@@ -54,6 +56,33 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, batch_size, d
         sample_metrics += get_batch_statistics(outputs,
                                                 targets,
                                                 iou_threshold=iou_thres)
+
+        # Save images if needed
+        if print:
+            for i in range(batch_size):
+                im_name = names[i]
+                im = imgs[i]
+                out_bb = outputs[i]
+                im_np = im.permute(1,2,0).data.numpy()
+                if im_np.shape[2] == 1:
+                    im_np = np.tile(im_np,(1,1,3))
+                # Get Detected Bouding Boxes
+                for bb in out_bb:
+                    x1 = round(bb[0].item())
+                    x2 = round(bb[2].item())
+                    y1 = round(bb[1].item())
+                    y2 = round(bb[3].item())
+                    dtn = bb[4].item()
+                    _, cla = torch.max(bb[5:],0)
+                    cla = cla.item()
+                    # Get rectangle
+                    rr, cc = polygon_perimeter([y1, y1, y2, y2],
+                                            [x1, x2, x2, x1],
+                                            shape=im_np.shape, clip=True)
+                    # Write rectangle on
+                    im_np[rr, cc, cla] = dtn
+                # Save image
+                Image.fromarray((255*im_np).astype(np.uint8)).save('../predictions/'+im_name)
 
     # Concatenate sample statistics
     true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
@@ -123,7 +152,8 @@ if __name__ == "__main__":
                                 opt.conf_thres,
                                 opt.nms_thres,
                                 opt.batch_size,
-                                device=device)
+                                device=device,
+                                print=True)
 
     print("Average Precisions:")
     for i, c in enumerate(ap_class):
