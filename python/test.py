@@ -23,7 +23,7 @@ from utils.datasets import OvaryDataset, printBoudingBoxes
 from utils.logger import Logger
 
 
-def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, batch_size, device, print=False):
+def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, batch_size, device, save_bb=False):
     """
         Evaluate model
     """
@@ -58,7 +58,7 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, batch_size, d
         # [true_positives, pred_scores, pred_labels]
 
         # Save images if needed
-        if print:
+        if save_bb:
             for i in range(batch_size):
                 im_name = names[i]
                 im = imgs[i]
@@ -150,7 +150,7 @@ if __name__ == "__main__":
                                 opt.nms_thres,
                                 opt.batch_size,
                                 device=device,
-                                print=True)
+                                save_bb=True)
 
     print("Average Precisions:")
     for i, c in enumerate(ap_class):
