@@ -55,6 +55,7 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, batch_size, d
         sample_metrics += get_batch_statistics(outputs,
                                                 targets,
                                                 iou_threshold=iou_thres)
+        # [true_positives, pred_scores, pred_labels]
 
         # Save images if needed
         if print:
@@ -67,10 +68,19 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, batch_size, d
                 # Save image
                 Image.fromarray((255*im_np).astype(np.uint8)).save('../predictions/'+im_name)
 
-    # Concatenate sample statistics
-    true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
-    precision, recall, AP, f1, ap_class = ap_per_class(true_positives, pred_scores, pred_labels, labels)
+    # Protect in case of no object detected
+    if len(sample_metrics) == 0:
+        precision = np.array([0])
+        recall = np.array([0])
+        AP = np.array([0])
+        f1 = np.array([0])
+        ap_class = np.array([0], dtype=np.int)
+    else:
+        # Concatenate sample statistics
+        true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
+        precision, recall, AP, f1, ap_class = ap_per_class(true_positives, pred_scores, pred_labels, labels)
 
+    # Group metrics
     evaluation_metrics = [
             ("val_precision", precision.mean()),
             ("val_recall", recall.mean()),
