@@ -133,9 +133,13 @@ if __name__ == "__main__":
     if opt.weights_path.endswith(".weights"):
         # Load darknet weights
         model.load_darknet_weights(opt.weights_path)
-    else:
+    elif opt.weights_path.endswith(".pth"):
         # Load checkpoint weights
         model.load_state_dict(torch.load(opt.weights_path))
+    else:
+        # Load state dictionary
+        state = torch.load(opt.weights_path)
+        model.load_state_dict(state['state_dict'])
 
     print("Compute mAP...")
 
