@@ -15,12 +15,11 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from tqdm import tqdm
 from PIL import Image
-from skimage.draw import polygon_perimeter
 
 from models.modules import Yolo_net
 from models.yolo import Darknet
 from models.utils import *
-from utils.datasets import OvaryDataset
+from utils.datasets import OvaryDataset, printBoudingBoxes
 from utils.logger import Logger
 
 
@@ -63,24 +62,8 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, batch_size, d
                 im_name = names[i]
                 im = imgs[i]
                 out_bb = outputs[i]
-                im_np = im.permute(1,2,0).data.numpy()
-                if im_np.shape[2] == 1:
-                    im_np = np.tile(im_np,(1,1,3))
-                # Get Detected Bouding Boxes
-                for bb in out_bb:
-                    x1 = round(bb[0].item())
-                    x2 = round(bb[2].item())
-                    y1 = round(bb[1].item())
-                    y2 = round(bb[3].item())
-                    dtn = bb[4].item()
-                    _, cla = torch.max(bb[5:],0)
-                    cla = cla.item()
-                    # Get rectangle
-                    rr, cc = polygon_perimeter([y1, y1, y2, y2],
-                                            [x1, x2, x2, x1],
-                                            shape=im_np.shape, clip=True)
-                    # Write rectangle on
-                    im_np[rr, cc, cla] = dtn
+                # Get RGB image with BB
+                im_np = printBoudingBoxes(im, out_bb)
                 # Save image
                 Image.fromarray((255*im_np).astype(np.uint8)).save('../predictions/'+im_name)
 

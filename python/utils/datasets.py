@@ -19,6 +19,7 @@ from skimage import exposure, filters
 from torchvision import transforms
 from torch.utils.data import Dataset
 
+from skimage.draw import polygon_perimeter
 from scipy import ndimage as ndi
 
 
@@ -372,6 +373,35 @@ class OvaryDataset(Dataset):
 
         return names, imgs, targets
 
+
+def printBoudingBoxes(img, bboxes):
+    '''
+        Print bouding boxes over image and return a RGB numpy.
+    '''
+    if type(img) == torch.Tensor or type(img) == torch.tensor:
+        im_np = img.permute(1,2,0).data.numpy()
+    else:
+        im_np = img
+
+    if im_np.shape[2] == 1:
+        im_np = np.tile(im_np,(1,1,3))
+    # Get Detected Bouding Boxes
+    for bb in bboxes:
+        x1 = round(bb[0].item())
+        x2 = round(bb[2].item())
+        y1 = round(bb[1].item())
+        y2 = round(bb[3].item())
+        dtn = bb[4].item()
+        _, cla = torch.max(bb[5:],0)
+        cla = cla.item()
+        # Get rectangle
+        rr, cc = polygon_perimeter([y1, y1, y2, y2],
+                                [x1, x2, x2, x1],
+                                shape=im_np.shape, clip=True)
+        # Write rectangle on
+        im_np[rr, cc, cla] = dtn
+
+        return im_np
 
 
 # Main calls
