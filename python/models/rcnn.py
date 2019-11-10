@@ -60,6 +60,8 @@ class FasterRCNN(nn.Module):
 if __name__ == "__main__":
 
     from skimage import io
+    import numpy as np
+
 
     image = io.imread('/Users/Diego/Downloads/cars.jpg') / 255.
     torch_img = torch.from_numpy(image)
@@ -96,5 +98,21 @@ if __name__ == "__main__":
     # output
     #loss_dict = model(images.to(device), targets)
     loss_dict = model(images.to(device))
+
+    for i in range(len(loss_dict)):
+        img = image
+        bboxes = loss_dict[i]['boxes']
+        color = np.array([0, 255, 0])/255.
+
+        for bb in bboxes:
+            bounding_box = bb.detach().numpy().round().astype(np.int)
+            img[bounding_box[1], bounding_box[0]:bounding_box[2]] = color
+            img[bounding_box[1]:bounding_box[3], bounding_box[0]] = color
+
+            img[bounding_box[3], bounding_box[0]:bounding_box[2]] = color
+            img[bounding_box[1]:bounding_box[3], bounding_box[2]] = color
+
+        io.imsave("./debug.png", img)
+
 
     print('')
