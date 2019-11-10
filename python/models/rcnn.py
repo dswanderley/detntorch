@@ -59,13 +59,18 @@ class FasterRCNN(nn.Module):
 
 if __name__ == "__main__":
 
-    from skimage import io
     import numpy as np
-
+    from skimage import io
+    from skimage.color import rgb2gray
 
     image = io.imread('/Users/Diego/Downloads/cars.jpg') / 255.
-    torch_img = torch.from_numpy(image)
-    torch_img = torch_img.permute(2,0,1)
+    #torch_img = torch.from_numpy(image)
+    #torch_img = torch_img.permute(2,0,1)
+
+    grayscale = rgb2gray(image)
+    torch_img = torch.from_numpy(grayscale)
+    torch_img.unsqueeze_(0)
+
     torch_img.unsqueeze_(0)
 
     # Load CUDA if exist
@@ -90,8 +95,8 @@ if __name__ == "__main__":
     targets = [tgts]#, tgts]
 
     # Model
-    #model = FasterRCNN(n_channels=1, n_classes=3, pretrained=True).to(device)
-    model = FasterRCNN(n_channels=3, pretrained=True).to(device)
+    model = FasterRCNN(n_channels=1, pretrained=True).to(device)
+    #model = FasterRCNN(n_channels=3, pretrained=True).to(device)
     model.eval()
     #model.train()
 
