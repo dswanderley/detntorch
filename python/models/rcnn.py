@@ -16,11 +16,9 @@ class FasterRCNN(nn.Module):
     '''
     Faster R-CNN Class
     '''
-    def __init__(self, n_channels=3, n_classes=21, softmax_out=False,
-                        resnet_type=101, pretrained=False):
+    def __init__(self, n_channels=3, n_classes=91, pretrained=False):
         super(FasterRCNN, self).__init__()
 
-        self.resnet_type = resnet_type
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.pretrained = pretrained
@@ -44,12 +42,6 @@ class FasterRCNN(nn.Module):
         else:
             self.body = fasterrcnn_resnet50_fpn(pretrained=pretrained, num_classes=n_classes, min_size=512)
 
-        # Softmax alternative
-        self.has_softmax = softmax_out
-        if softmax_out:
-            self.softmax = nn.Softmax2d()
-        else:
-            self.softmax = None
 
     def forward(self, x, tgts=None):
         # input layer to convert to 3 channels
@@ -61,15 +53,18 @@ class FasterRCNN(nn.Module):
             x_out = self.body(x,tgts)
         else:
             x_out = self.body(x)
-        # Softmax output if necessary
-        if self.softmax != None:
-            x_out = self.softmax(x_out)
+
         return x_out
 
 
 if __name__ == "__main__":
 
-    import math
+    from skimage import io
+
+    image = io.imread('/Users/Diego/Downloads/cars.jpg') / 255.
+    torch_img = torch.from_numpy(image)
+    torch_img = torch_img.permute(2,0,1)
+    torch_img.unsqueeze_(0)
 
     # Load CUDA if exist
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -78,28 +73,28 @@ if __name__ == "__main__":
     # https://github.com/pytorch/vision/blob/master/references/detection/train.py
 
     # Images
-    images = torch.randn(2, 1, 512, 512)
+    #images = torch.randn(2, 1, 512, 512)
+    images = torch_img.float()
     # Targets
     bbox = torch.FloatTensor([[120, 130, 300, 350], [200, 200, 250, 250]]) # [y1, x1, y2, x2] format
     lbls = torch.LongTensor([1, 2]) # 0 represents background
-    mask = torch.zeros(2, 512, 512)
-    mask[0, 120:300, 130:350] = 1
-    mask[1, 200:250, 200:250] = 1
+
     # targets per image
     tgts = {
         'boxes':  bbox.to(device),
-        'labels': lbls.to(device),
-        'masks': mask.to(device)
+        'labels': lbls.to(device)
     }
     # targets to list (by batch)
-    targets = [tgts, tgts]
+    targets = [tgts]#, tgts]
 
     # Model
-    model = FasterRCNN(n_channels=1, n_classes=3, pretrained=True).to(device)
+    #model = FasterRCNN(n_channels=1, n_classes=3, pretrained=True).to(device)
+    model = FasterRCNN(n_channels=3, pretrained=True).to(device)
     model.eval()
     #model.train()
 
     # output
-    loss_dict = model(images.to(device), targets)
+    #loss_dict = model(images.to(device), targets)
+    loss_dict = model(images.to(device))
 
     print('')
