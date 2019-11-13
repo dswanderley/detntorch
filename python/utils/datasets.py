@@ -374,7 +374,7 @@ class OvaryDataset(Dataset):
         return names, imgs, targets
 
 
-def printBoudingBoxes(img, bboxes):
+def printBoudingBoxes(img, bboxes, score=None, lbl=None):
     '''
         Print bouding boxes over image and return a RGB numpy.
     '''
@@ -392,13 +392,23 @@ def printBoudingBoxes(img, bboxes):
     # Check if has no bouding box
     if len(bboxes) > 0:
         # Get Detected Bouding Boxes
-        for bb in bboxes:
+        for i in range(len(bboxes)):
+            bb = bboxes[i]
             x1 = round(bb[0].item())
             x2 = round(bb[2].item())
             y1 = round(bb[1].item())
             y2 = round(bb[3].item())
-            dtn = bb[4].item()
-            _, cla = torch.max(bb[5:],0)
+            # pred scores
+            if score is None:
+                dtn = bb[4]
+            else:
+                dtn = score[i]
+            dtn = dtn.item()
+            # Class
+            if lbl is None:
+                _, cla = torch.max(bb[5:],0)
+            else:
+                cla = lbl[i]
             cla = cla.item()
             # Get rectangle
             rr, cc = polygon_perimeter([y1, y1, y2, y2],
