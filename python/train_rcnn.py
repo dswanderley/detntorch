@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 import utils.transformations as tsfrm
 
-from test import evaluate
+from test_rcnn import evaluate
 from models.rcnn import FasterRCNN
 from utils.datasets import OvaryDataset
 from utils.logger import Logger
@@ -114,6 +114,31 @@ class Training:
         return loss_value
 
 
+    def _iterate_val(self, data_loader):
+
+        evaluation_metrics, ap_class = evaluate(self.model,
+                                            data_loader,
+                                            1, #batch_size,
+                                            device=self.device)
+        return evaluation_metrics
+
+
+    def _logging(self, epoch, avg_loss_train, val_evaluation):
+
+        # 1. Log scalar values (scalar summary)
+        info = val_evaluation
+        info.append(('avg_loss_train', avg_loss_train))
+        for tag, value in info:
+            self.logger.scalar_summary(tag, value, epoch+1)
+
+        # 2. Log values and gradients of the parameters (histogram summary)
+        for tag, value in self.model.named_parameters():
+            tag = tag.replace('.', '/')
+            self.logger.histo_summary(tag, value.data.cpu().numpy(), epoch+1)
+            if not value.grad is None:
+                self.logger.histo_summary(tag +'/grad', value.grad.data.cpu().numpy(), epoch+1)
+
+
     def train(self, epochs=100, batch_size=4):
         '''
         Train network function
@@ -141,6 +166,29 @@ class Training:
             avg_loss_train = self._iterate_train(data_loader_train)
             print('training loss:  {:f}'.format(avg_loss_train))
 
+            # ========================= Validation ============================= #
+            val_evaluation = self._iterate_val(data_loader_val)
+            val_precision = val_evaluation[0]
+            print(val_precision[0] + ': {:f}'.format(val_precision[1]))
+            print('')
+
+            # ======================== Save weights ============================ #
+            if best_precision < val_precision[1]:
+                best_precision = val_precision[1]
+                # save
+                self._saveweights({
+                'epoch': self.epoch + 1,
+                'state_dict': self.model.state_dict(),
+                'best_precision': best_precision,
+                'optimizer': str(self.optimizer),
+                'optimizer_dict': self.optimizer.state_dict(),
+                'device': str(self.device)
+                })
+
+            # ====================== Tensorboard Logging ======================= #
+            if self.logger:
+                self._logging(self.epoch, avg_loss_train, val_evaluation)
+
 
 
 if __name__ == "__main__":
@@ -151,7 +199,7 @@ if __name__ == "__main__":
     n_epochs = 500
     batch_size = 4
     input_channels = 1
-    network_name = 'fast_rcnn'
+    network_name = 'faster_rcnn'
     train_name = gettrainname(network_name)
 
     # Load CUDA if exist
