@@ -173,13 +173,16 @@ class Training:
             print('')
 
             # ======================== Save weights ============================ #
-            if best_precision < val_precision[1]:
-                best_precision = val_precision[1]
+            # if best_precision < val_precision[1]:
+            # VAL PRECISION IS NOt WORKING
+                #best_precision = val_precision[1]
+            if best_precision < avg_loss_train:
+                best_precision = avg_loss_train
                 # save
                 self._saveweights({
                 'epoch': self.epoch + 1,
                 'state_dict': self.model.state_dict(),
-                'best_precision': best_precision,
+                'best_loss_train': best_precision,
                 'optimizer': str(self.optimizer),
                 'optimizer_dict': self.optimizer.state_dict(),
                 'device': str(self.device)
