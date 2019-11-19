@@ -76,11 +76,6 @@ def evaluate(model, data_loader, batch_size, device, save_bb=False):
             pred_labels = out_pred['labels']
             pred_scores = out_pred['scores']
 
-            pred_boxes = torch.tensor([ [224.9237, 193.8398, 384.5366, 256.3379],
-                                        [109.,  81., 163., 141.]])
-            pred_labels = torch.tensor([1, 1])
-            pred_scores = torch.tensor([.6, 9])
-
             true_positives = np.zeros(pred_boxes.shape[0])
             detected_boxes = []
 
@@ -108,7 +103,7 @@ def evaluate(model, data_loader, batch_size, device, save_bb=False):
             # Get RGB image with BB
             im_np = printBoudingBoxes(im, pred_boxes, lbl=pred_labels, score=pred_scores)
             # Save image
-            Image.fromarray((255*im_np).astype(np.uint8)).save('../predictions/'+im_name)
+            Image.fromarray((255*im_np).astype(np.uint8)).save('../predictions/faster_rcnn/'+im_name)
 
     sample_metrics += batch_metrics
 
