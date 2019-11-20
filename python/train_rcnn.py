@@ -107,9 +107,9 @@ class Training:
                 sys.exit(1)
 
             # Backpropagation
-            optimizer.zero_grad()
+            self.optimizer.zero_grad()
             losses.backward()
-            optimizer.step()
+            self.optimizer.step()
 
         return loss_value
 
