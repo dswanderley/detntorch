@@ -225,10 +225,10 @@ class OvaryDataset(Dataset):
         labels = []
         # Follicles boxes
         for i in range(0,num_inst):
-            if (i == 0 and self.ovary_instance):
-                labels.append(1)
+            if (self.ovary_instance and i==0):
+                labels.append(2)
             else:
-                labels.append(2) if self.ovary_instance else labels.append(1)
+                labels.append(1)
             slice_y, slice_x = ndi.find_objects(mask_inst==i+1)[0]
             box = [ float(slice_x.start),
                     float(slice_y.start),
@@ -358,15 +358,15 @@ class OvaryDataset(Dataset):
             obj_height = (tgt[:,3] - tgt[:,1]) / im_height
             # Add target data to the same array
             boxes = torch.zeros((len(tgt), 6))
-            boxes[:,0] = i;     # index of image on batch
-            boxes[:,1] = lbl;   # classes
-            boxes[:,2] = center_x;  # bouding boxes
-            boxes[:,3] = center_y;  # bouding boxes
-            boxes[:,4] = obj_width;  # bouding boxes
-            boxes[:,5] = obj_height;  # bouding boxes
+            boxes[:,0] = i;             # index of image on batch
+            boxes[:,1] = lbl;           # classes
+            boxes[:,2] = center_x;      # bouding boxes
+            boxes[:,3] = center_y;      # bouding boxes
+            boxes[:,4] = obj_width;     # bouding boxes
+            boxes[:,5] = obj_height;    # bouding boxes
             targets.append(boxes)
         # Convert list to a single tensor
-        targets = torch.cat(targets, 0)
+        targets = torch.cat(targets, 0) # [batch, class, cx, cy, w, h]
 
         # images to input shape
         imgs = torch.stack([img if (len(img.shape) > 2) else img.unsqueeze_(0) for img in imgs])
@@ -423,11 +423,20 @@ def printBoudingBoxes(img, bboxes, score=None, lbl=None):
 # Main calls
 if __name__ == '__main__':
 
+    import os
+    import matplotlib.patches as patches
+    import matplotlib.pyplot as plt
+    from matplotlib.ticker import NullLocator
     from torch.utils.data import DataLoader
 
+    classes = ['background','follicle','ovary']
+    colors = ['w', 'm', 'y']
+    path_im = '../datasets/ovarian/im/test/'
+    path_gt = path_im.replace('/im/', '/gt/')
+
     # pre-set
-    dataset = OvaryDataset(im_dir='../datasets/ovarian/im/test/',
-                           gt_dir='../datasets/ovarian/gt/test/',
+    dataset = OvaryDataset(im_dir=path_im,
+                           gt_dir=path_gt,
                            clahe=False, transform=False,
                            ovary_inst=True,
                            out_tuple=True)
@@ -435,14 +444,60 @@ if __name__ == '__main__':
     data_loader = DataLoader(dataset, batch_size=4, shuffle=True,
                                     collate_fn=dataset.collate_fn_yolo)
     # iterate
-    for _, (names, imgs, targets) in enumerate(data_loader):
-            # Load data
+    for _, (fnames, imgs, targets) in enumerate(data_loader):
+        # Load data
+        '''
+        images = list(s['image'] for s in sample)
 
-            '''
-            images = list(s['image'] for s in sample)
+        targets = [s['targets'] for s in sample]
+        '''
+        img_size = imgs.shape[-1]
 
-            targets = [s['targets'] for s in sample]
-            '''
+        # read each image in batch
+        for i in range(len(imgs)):
 
-            print('')
+            filename = fnames[i]
+
+            img = imgs[i]
+            img_np = img.permute(1,2,0).numpy()
+
+            # Create plot
+            plt.figure()
+            fig, ax = plt.subplots(1)
+            ax.imshow(img_np[:,:,0])
+
+            for box in targets:
+
+                # Check batch index
+                if i == int(box[0]):
+                    cl = box[1]
+                    x1 = (box[2]-box[4]/2).item()*img_size
+                    y1 = (box[3]-box[5]/2).item()*img_size
+                    box_w = box[4].item()*img_size
+                    box_h = box[5].item()*img_size
+                    bbox = patches.Rectangle((x1, y1), box_w, box_h,
+                            linewidth=2, edgecolor=colors[int(cl)], facecolor="none")
+
+                    # add box to plot
+                    ax.add_patch(bbox)
+                    # Add label
+                    plt.text(
+                        x1,
+                        y1,
+                        s=classes[int(cl)],
+                        color="white",
+                        verticalalignment="top",
+                        bbox={"color": colors[int(cl)], "pad": 0},
+                    )
+
+            # Save generated image with detections
+            plt.axis("off")
+            plt.gca().xaxis.set_major_locator(NullLocator())
+            plt.gca().yaxis.set_major_locator(NullLocator())
+
+            os.makedirs("output", exist_ok=True)
+            plt.savefig(f"output/{filename}.png", bbox_inches="tight", pad_inches=0.0)
+            plt.close()
+
+    print('')
 
