@@ -6,6 +6,7 @@ Created on Sat Oct 19 13:04:11 2019
 @description: Train script with training class
 """
 
+import tqdm
 import torch
 import torch.optim as optim
 import numpy as np
@@ -13,7 +14,6 @@ import numpy as np
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torch.autograd import Variable
-from tqdm import tqdm
 
 import utils.transformations as tsfrm
 
@@ -88,7 +88,7 @@ class Training:
         self.model = self.model.to(self.device)
 
         # Batch iteration - Training dataset
-        for batch_idx, (names, imgs, targets) in enumerate(data_loader):
+        for batch_idx, (names, imgs, targets) in enumerate(tqdm.tqdm(data_loader, desc="Training epoch")):
             batches_done = len(data_loader) * self.epoch + batch_idx
 
             imgs = Variable(imgs.to(device))

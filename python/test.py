@@ -6,14 +6,15 @@ Created on Thu Oct 24 19:23:12 2019
 @description: Test script with evaluate function.
 """
 
-import torch
+import tqdm
 import argparse
+import torch
 import torch.optim as optim
 import numpy as np
 
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
-from tqdm import tqdm
+
 from PIL import Image
 
 from models.modules import Yolo_net
@@ -35,7 +36,7 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, batch_size, d
     labels = []         # to recieve targets
 
     # Batch iteration - Validation dataset
-    for batch_idx, (names, imgs, targets) in enumerate(data_loader):
+    for batch_idx, (names, imgs, targets) in enumerate(tqdm.tqdm(data_loader, desc="Validation")):
         # Images
         imgs = Variable(imgs.to(device), requires_grad=False)
         img_size = imgs.shape[-1]
