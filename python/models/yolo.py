@@ -11,11 +11,11 @@ import matplotlib.patches as patches
 
 try:
     import models.losses as losses
-    from models.utils import prepare_targets, to_cpu
+    from models.utils import *
     from models.parse_config import *
 except:
     import losses
-    from utils import prepare_targets, to_cpu, non_max_suppression
+    from utils import *
     from parse_config import *
 
 
@@ -186,12 +186,12 @@ class YOLOLayer(nn.Module):
         if targets is None:
             return output, 0
         else:
-            iou_scores, class_mask, obj_mask, noobj_mask, tx, ty, tw, th, tcls, tconf = prepare_targets(
+            iou_scores, class_mask, obj_mask, noobj_mask, tx, ty, tw, th, tcls, tconf = build_targets(
                 pred_boxes=pred_boxes,
                 pred_cls=pred_cls,
                 target=targets,
                 anchors=self.scaled_anchors,
-                ignore_thresh=self.ignore_thres,
+                ignore_thres=self.ignore_thres,
             )
 
             # Loss : Mask outputs to ignore non-existing objects (except with conf. loss)

@@ -15,9 +15,9 @@ import numpy as np
 import torch.nn as nn
 
 try:
-    from models.utils import prepare_targets
+    from models.utils import *
 except:
-    from utils import prepare_targets
+    from utils import *
 
 
 class YoloLoss(nn.Module):
@@ -55,12 +55,12 @@ class YoloLoss(nn.Module):
         pred_boxes = pred[6]
 
         # Bouding boxes scores
-        iou_scores, class_pred, obj_detn, noobj_detn, bb_x, bb_y, bb_w, bb_h, tcls, tconf = prepare_targets(
+        iou_scores, class_pred, obj_detn, noobj_detn, bb_x, bb_y, bb_w, bb_h, tcls, tconf = build_targets(
                 pred_boxes=pred_boxes,
                 pred_cls=pred_cls,
                 target=targets,
                 anchors=self.anchors,
-                ignore_thresh=self.ignore_thresh,
+                ignore_thres=self.ignore_thresh,
             )
 
         # Bouding Box losses based on MSE

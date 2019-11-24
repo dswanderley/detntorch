@@ -18,7 +18,7 @@ from tqdm import tqdm
 import utils.transformations as tsfrm
 
 from test import evaluate
-from models.modules import Yolo_net
+#from models.modules import Yolo_net
 from models.yolo import Darknet
 from models.utils import *
 from utils.datasets import OvaryDataset
@@ -88,7 +88,7 @@ class Training:
         self.model = self.model.to(self.device)
 
         # Batch iteration - Training dataset
-        for batch_idx, (names, imgs, targets) in enumerate(tqdm(data_loader, desc="Training epoch")):
+        for batch_idx, (names, imgs, targets) in enumerate(data_loader):
             batches_done = len(data_loader) * self.epoch + batch_idx
 
             imgs = Variable(imgs.to(device))

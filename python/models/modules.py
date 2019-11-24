@@ -13,10 +13,10 @@ import torch.nn.functional as F
 
 try:
     import models.losses as losses
-    from models.utils import get_pred_boxes, prepare_targets, to_cpu
+    from models.utils import *
 except:
     import losses
-    from utils import get_pred_boxes, prepare_targets, to_cpu
+    from utils import *
 
 
 class DarknetConvBlock(nn.Module):

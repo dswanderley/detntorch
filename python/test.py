@@ -43,7 +43,7 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, batch_size, d
         # Labels
         labels += targets[:, 1].tolist()
         # Rescale target
-        targets[:, 2:] = central_to_corners_coord(targets[:, 2:])
+        targets[:, 2:] = xywh2xyxy(targets[:, 2:])
         targets[:, 2:] *= img_size
 
         with torch.no_grad():
