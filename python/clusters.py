@@ -8,32 +8,34 @@ from torch.utils.data import DataLoader
 
 N_CLUSTERS = 6
 
-path_im = "../datasets/ovarian/im/test"
-path_gt = "../datasets/ovarian/gt/test"
+im_list = ["../datasets/ovarian/im/test", "../datasets/ovarian/im/train", "../datasets/ovarian/im/val"]
+gt_list = ["../datasets/ovarian/gt/test", "../datasets/ovarian/gt/train", "../datasets/ovarian/gt/val"]
 
 widths = []
 heights = []
 
-# pre-set
-dataset = OvaryDataset(im_dir=path_im,
-                        gt_dir=path_gt,
-                        clahe=False, transform=False,
-                        ovary_inst=True,
-                        out_tuple=True)
-# Loader
-data_loader = DataLoader(dataset, batch_size=1, shuffle=False,
-                                collate_fn=dataset.collate_fn_yolo)
+for (path_im, path_gt) in zip(im_list, gt_list):
 
-# iterate
-for _, (fname, img, targets) in enumerate(data_loader):
-    # Load data
+    # pre-set
+    dataset = OvaryDataset(im_dir=path_im,
+                            gt_dir=path_gt,
+                            clahe=False, transform=False,
+                            ovary_inst=True,
+                            out_tuple=True)
+    # Loader
+    data_loader = DataLoader(dataset, batch_size=1, shuffle=False,
+                                    collate_fn=dataset.collate_fn_yolo)
 
-    img_size = img.shape[-1]
+    # iterate
+    for _, (fname, img, targets) in enumerate(data_loader):
+        # Load data
 
-    # read each image in batch
-    for idx, lbl, cx, cy, w, h in targets:
-        widths.append(w.item() * img_size)
-        heights.append(h.item() * img_size)
+        img_size = img.shape[-1]
+
+        # read each image in batch
+        for idx, lbl, cx, cy, w, h in targets:
+            widths.append(w.item() * img_size)
+            heights.append(h.item() * img_size)
 
 # Compute clusters
 data = np.array( [widths, heights] )
