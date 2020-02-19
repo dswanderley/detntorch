@@ -1,22 +1,20 @@
 from __future__ import division
-from torch.autograd import Variable
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from torch.autograd import Variable
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 
 try:
-    import models.losses as losses
-    from models.utils import *
-    from models.parse_config import *
+    from models.yolo_utils.parse_config import *
+    from models.yolo_utils.utils import build_targets, to_cpu, non_max_suppression
 except:
-    import losses
-    from utils import *
-    from parse_config import *
+    from yolo_utils.parse_config import *
+    from yolo_utils.utils import build_targets, to_cpu, non_max_suppression
+
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 
 def create_modules(module_defs):
@@ -143,7 +141,7 @@ class YOLOLayer(nn.Module):
         # Tensors for cuda support
         FloatTensor = torch.cuda.FloatTensor if x.is_cuda else torch.FloatTensor
         LongTensor = torch.cuda.LongTensor if x.is_cuda else torch.LongTensor
-        ByteTensor = torch.cuda.ByteTensor if x.is_cuda else torch.ByteTensor
+        ByteTensor = torch.cuda.BoolTensor if x.is_cuda else torch.BoolTensor
 
         self.img_dim = img_dim
         num_samples = x.size(0)
@@ -240,7 +238,7 @@ class YOLOLayer(nn.Module):
 class Darknet(nn.Module):
     """YOLOv3 object detection model"""
 
-    def __init__(self, config_path, img_size=416):
+    def __init__(self, config_path, img_size=160):
         super(Darknet, self).__init__()
         self.module_defs = parse_model_config(config_path)
         self.hyperparams, self.module_list = create_modules(self.module_defs)
@@ -267,7 +265,7 @@ class Darknet(nn.Module):
                 yolo_outputs.append(x)
             layer_outputs.append(x)
         yolo_outputs = to_cpu(torch.cat(yolo_outputs, 1))
-        return yolo_outputs if targets is None else (yolo_outputs, loss)
+        return yolo_outputs if targets is None else (loss, yolo_outputs)
 
     def load_darknet_weights(self, weights_path):
         """Parses and loads the weights stored in 'weights_path'"""
@@ -349,3 +347,16 @@ class Darknet(nn.Module):
                 conv_layer.weight.data.cpu().numpy().tofile(fp)
 
         fp.close()
+
+
+
+if __name__ == "__main__":
+
+    img = torch.randn((1,1,512,512))
+
+    model_def = 'D:/Users/Diego/Projects/detntorch/python/config/yolov3.cfg'#'/../config/yolov3.cfg'
+    model = Darknet(model_def)
+
+    outputs = model(img)
+
+    print('')

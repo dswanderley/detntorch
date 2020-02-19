@@ -20,10 +20,9 @@ import utils.transformations as tsfrm
 from test import evaluate
 #from models.modules import Yolo_net
 from models.yolo import Darknet
-from models.utils import *
+from models.yolo_utils.utils import *
 from utils.datasets import OvaryDataset
-from utils.logger import Logger
-
+#from utils.logger import Logger
 
 
 class Training:
@@ -94,7 +93,7 @@ class Training:
             imgs = Variable(imgs.to(device))
             targets = Variable(targets.to(device), requires_grad=False)
             # Forward and loss
-            output, loss = self.model(imgs, targets=targets)
+            loss, output = self.model(imgs, targets=targets)
             loss.backward()
 
             if batches_done % self.gradient_accumulations:
@@ -187,13 +186,13 @@ class Training:
                 })
 
             # ====================== Tensorboard Logging ======================= #
-            if self.logger:
-                self._logging(self.epoch, avg_loss_train, val_evaluation)
+            #if self.logger:
+            #    self._logging(self.epoch, avg_loss_train, val_evaluation)
 
 
 if __name__ == "__main__":
 
-    from utils.aux import gettrainname
+    from utils.helper import gettrainname
 
     # Input parameters
     n_epochs = 500
@@ -236,11 +235,13 @@ if __name__ == "__main__":
 
 
      # Set logs folder
-    logger = Logger('../logs/' + train_name + '/')
+    #logger = Logger('../logs/' + train_name + '/')
 
     # Run training
     training = Training(model, device, dataset_train, dataset_val,
-                        optimizer, logger=logger, train_name=train_name)
+                        optimizer, 
+                        #logger=logger, 
+                        train_name=train_name)
     training.train(epochs=n_epochs, batch_size=batch_size)
 
     print('')

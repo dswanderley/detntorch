@@ -1,3 +1,4 @@
 *.png
 python/.vscode/
 *.pyc
+*.tar

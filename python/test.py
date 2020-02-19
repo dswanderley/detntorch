@@ -19,7 +19,8 @@ from PIL import Image
 
 from models.modules import Yolo_net
 from models.yolo import Darknet
-from models.utils import *
+from models.yolo_utils.utils import *
+
 from utils.datasets import OvaryDataset, printBoudingBoxes
 from utils.logger import Logger
 

@@ -15,9 +15,9 @@ import numpy as np
 import torch.nn as nn
 
 try:
-    from models.utils import *
+    from models.yolo_utils.utils import *
 except:
-    from utils import *
+    from yolo_utils.utils import *
 
 
 class YoloLoss(nn.Module):

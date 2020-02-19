@@ -12,11 +12,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 try:
-    import models.losses as losses
-    from models.utils import *
+    import models.yolo_utils.losses as losses
+    from models.yolo_utils.utils import *
 except:
-    import losses
-    from utils import *
+    import yolo_utils.losses
+    from yolo_utils.utils import *
 
 
 class DarknetConvBlock(nn.Module):
