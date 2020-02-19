@@ -1,7 +1,7 @@
 from __future__ import division
 
 from models.yolo import Darknet
-from models.utils import *
+from models.yolo_utils.utils import *
 from utils.datasets import *
 
 import os
@@ -25,7 +25,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--image_folder", type=str, default="data/samples", help="path to dataset")
     parser.add_argument("--model_def", type=str, default="config/yolov3.cfg", help="path to model definition file")
-    parser.add_argument("--weights_path", type=str, default="../weights/20191103_2156_Yolo_v3_weights.pth.tar", help="path to weights file")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200219_2128_Yolo_v3_weights.pth.tar", help="path to weights file")
     parser.add_argument("--conf_thres", type=float, default=0.8, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
     parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
