@@ -195,7 +195,7 @@ if __name__ == "__main__":
     from utils.helper import gettrainname
 
     # Input parameters
-    n_epochs = 500
+    n_epochs = 300
     batch_size = 4
     input_channels = 1
     network_name = 'Yolo_v3'
