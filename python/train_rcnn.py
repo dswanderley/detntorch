@@ -19,7 +19,7 @@ import utils.transformations as tsfrm
 from test_rcnn import evaluate
 from models.rcnn import FasterRCNN
 from utils.datasets import OvaryDataset
-from utils.logger import Logger
+#from utils.logger import Logger
 from utils.helper import reduce_dict
 
 
@@ -89,7 +89,7 @@ class Training:
                 )
 
             # Forward and loss
-            loss_dict = self.model(images, targets)
+            loss_dict = self.model(images.to(self.device), targets)
 
             # Compute loss
             losses = sum(loss for loss in loss_dict.values())
@@ -150,9 +150,9 @@ class Training:
 
         # Load Dataset
         data_loader_train = DataLoader(self.train_set, batch_size=batch_size, shuffle=True,
-                                        collate_fn=self.train_set.collate_fn_list)
+                                        collate_fn=self.train_set.collate_fn_rcnn)
         data_loader_val = DataLoader(self.valid_set, batch_size=1, shuffle=False,
-                                        collate_fn=self.valid_set.collate_fn_list)
+                                        collate_fn=self.valid_set.collate_fn_rcnn)
 
         # Define parameters
         best_precision = 0    # Init best loss with a too high value
@@ -196,10 +196,10 @@ class Training:
 
 if __name__ == "__main__":
 
-    from utils.aux import gettrainname
+    from utils.helper import gettrainname
 
     # Input parameters
-    n_epochs = 500
+    n_epochs = 150
     batch_size = 4
     input_channels = 1
     network_name = 'faster_rcnn'
@@ -219,12 +219,12 @@ if __name__ == "__main__":
                            ])
 
     # Dataset definitions
-    dataset_train = OvaryDataset(im_dir='../datasets/ovarian/im/train/',
+    dataset_train = OvaryDataset(im_dir='../datasets/ovarian/gt/train/',
                            gt_dir='../datasets/ovarian/gt/train/',
                            clahe=False, transform=transform,
                            ovary_inst=False,
                            out_tuple=True)
-    dataset_val = OvaryDataset(im_dir='../datasets/ovarian/im/val/',
+    dataset_val = OvaryDataset(im_dir='../datasets/ovarian/gt/val/',
                            gt_dir='../datasets/ovarian/gt/val/',
                            clahe=False, transform=False,
                            ovary_inst=False,
@@ -235,11 +235,12 @@ if __name__ == "__main__":
 
 
      # Set logs folder
-    logger = Logger('../logs/' + train_name + '/')
+    #logger = Logger('../logs/' + train_name + '/')
 
     # Run training
     training = Training(model, device, dataset_train, dataset_val,
-                        optimizer, logger=logger, train_name=train_name)
+                        optimizer, #logger=logger, 
+                        train_name=train_name)
     training.train(epochs=n_epochs, batch_size=batch_size)
 
     print('')

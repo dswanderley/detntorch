@@ -17,7 +17,7 @@ from tqdm import tqdm
 from PIL import Image
 
 from models.rcnn import FasterRCNN
-from models.utils import *
+from models.yolo_utils.utils import *
 from utils.datasets import OvaryDataset, printBoudingBoxes
 from utils.logger import Logger
 
@@ -61,7 +61,7 @@ def evaluate(model, data_loader, batch_size, device, save_bb=False):
 
         # Run prediction
         with torch.no_grad():
-            outputs = model(images)
+            outputs = model(images.to(device))
 
         # [true_positives, pred_scores, pred_labels]
         batch_metrics = []
@@ -94,7 +94,7 @@ def evaluate(model, data_loader, batch_size, device, save_bb=False):
                     true_positives[pred_i] = 1
                     detected_boxes += [box_index]
 
-            batch_metrics.append([true_positives, pred_scores, pred_labels])
+            batch_metrics.append([true_positives, pred_scores.cpu(), pred_labels.cpu()])
 
         # Save images if needed
         if save_bb:
@@ -103,7 +103,7 @@ def evaluate(model, data_loader, batch_size, device, save_bb=False):
             # Get RGB image with BB
             im_np = printBoudingBoxes(im, pred_boxes, lbl=pred_labels, score=pred_scores)
             # Save image
-            Image.fromarray((255*im_np).astype(np.uint8)).save('../predictions/faster_rcnn/'+im_name)
+            Image.fromarray((255*im_np).astype(np.uint8)).save('../predictions/faster_rcnn/' + im_name)
 
     sample_metrics += batch_metrics
 

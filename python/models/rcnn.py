@@ -59,11 +59,13 @@ class FasterRCNN(nn.Module):
 
 if __name__ == "__main__":
 
+    import os
     import numpy as np
     from skimage import io
     from skimage.color import rgb2gray
 
-    image = io.imread('/Users/Diego/Downloads/cars.jpg') / 255.
+    im_path = os.path.join('../datasets/cars', 'cars.jpg') 
+    image = io.imread(im_path) / 255.
     #torch_img = torch.from_numpy(image)
     #torch_img = torch_img.permute(2,0,1)
 
@@ -110,7 +112,7 @@ if __name__ == "__main__":
         color = np.array([0, 255, 0])/255.
 
         for bb in bboxes:
-            bounding_box = bb.detach().numpy().round().astype(np.int)
+            bounding_box = bb.cpu().detach().numpy().round().astype(np.int)
             img[bounding_box[1], bounding_box[0]:bounding_box[2]] = color
             img[bounding_box[1]:bounding_box[3], bounding_box[0]] = color
 

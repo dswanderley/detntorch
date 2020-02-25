@@ -323,13 +323,46 @@ class OvaryDataset(Dataset):
                     'follicle_instances': b[6],
                     'num_follicles':  b[7],
                     'targets': {
-                                'boxes': b[8],
+                                'boxes':  b[8],
                                 'labels': b[9],
-                                'masks': b[10]
+                                'masks':  b[10]
                             }
                 }
             )
         return el_list
+
+
+    def collate_fn_rcnn(self, batch):
+        '''
+            Merges a list of samples to form a faster rcnn batch (coco based)
+
+            Outputs
+
+        '''
+        batch_list = []
+        for b in batch:
+
+            bbox = b[8]
+            boxes = torch.zeros((len(bbox), 4))
+
+            boxes[:,0] = bbox[:,0]
+            boxes[:,1] = bbox[:,0]
+            boxes[:,2] = bbox[:,2] - bbox[:,0]
+            boxes[:,3] = bbox[:,3] - bbox[:,1]
+
+            batch_list.append(
+                {
+                    'im_name': b[0],
+                    'image': b[1],
+                    'targets': {
+                                'boxes': boxes,
+                                'labels': b[9]
+                            }
+                }
+            )
+        return batch_list
+
+
 
     def collate_fn_yolo(self, batch):
         '''
@@ -358,12 +391,12 @@ class OvaryDataset(Dataset):
             obj_height = (tgt[:,3] - tgt[:,1]) / im_height
             # Add target data to the same array
             boxes = torch.zeros((len(tgt), 6))
-            boxes[:,0] = i;             # index of image on batch
-            boxes[:,1] = lbl;           # classes
-            boxes[:,2] = center_x;      # bouding boxes
-            boxes[:,3] = center_y;      # bouding boxes
-            boxes[:,4] = obj_width;     # bouding boxes
-            boxes[:,5] = obj_height;    # bouding boxes
+            boxes[:,0] = i             # index of image on batch
+            boxes[:,1] = lbl           # classes
+            boxes[:,2] = center_x      # bouding boxes
+            boxes[:,3] = center_y      # bouding boxes
+            boxes[:,4] = obj_width     # bouding boxes
+            boxes[:,5] = obj_height    # bouding boxes
             targets.append(boxes)
         # Convert list to a single tensor
         targets = torch.cat(targets, 0) # [batch, class, cx, cy, w, h]
@@ -442,7 +475,7 @@ if __name__ == '__main__':
                            out_tuple=True)
     # Loader
     data_loader = DataLoader(dataset, batch_size=4, shuffle=True,
-                                    collate_fn=dataset.collate_fn_yolo)
+                                    collate_fn=dataset.collate_fn_rcnn)
     # iterate
     for _, (fnames, imgs, targets) in enumerate(data_loader):
         # Load data
