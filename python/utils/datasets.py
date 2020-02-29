@@ -336,32 +336,25 @@ class OvaryDataset(Dataset):
         '''
             Merges a list of samples to form a faster rcnn batch (coco based)
 
-            Outputs
+            Output: list of dict
+                - im_name:    tuple with filenames
+                - image:     tensor - size (batch_size, channels, height, width)
+                - targets:  dict - {labels, boxes: [x1, y1, x2, y2]}
 
         '''
         batch_list = []
         for b in batch:
-
-            bbox = b[8]
-            boxes = torch.zeros((len(bbox), 4))
-
-            boxes[:,0] = bbox[:,0]
-            boxes[:,1] = bbox[:,0]
-            boxes[:,2] = bbox[:,2] - bbox[:,0]
-            boxes[:,3] = bbox[:,3] - bbox[:,1]
-
             batch_list.append(
                 {
                     'im_name': b[0],
                     'image': b[1],
                     'targets': {
-                                'boxes': boxes,
+                                'boxes': b[8],
                                 'labels': b[9]
                             }
                 }
             )
         return batch_list
-
 
 
     def collate_fn_yolo(self, batch):

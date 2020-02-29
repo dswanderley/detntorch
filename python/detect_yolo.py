@@ -40,7 +40,7 @@ if __name__ == "__main__":
     classes = ['background','follicle']
     path = '../datasets/ovarian/im/test/'
     path_gt = path.replace('/im/', '/gt/')
- 
+
 
     # Initiate model
     model = Darknet(opt.model_def).to(device)
