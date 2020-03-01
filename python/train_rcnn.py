@@ -199,6 +199,7 @@ if __name__ == "__main__":
     from utils.helper import gettrainname
 
     # Input parameters
+    n_classes = 2
     n_epochs = 150
     batch_size = 4
     input_channels = 1
@@ -209,7 +210,7 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Load network model
-    model = FasterRCNN(n_channels=input_channels, pretrained=True).to(device)
+    model = FasterRCNN(num_channels=input_channels, num_classes=n_classes, pretrained=True).to(device)
 
     # Transformation parameters
     transform = tsfrm.Compose([tsfrm.RandomHorizontalFlip(p=0.5),

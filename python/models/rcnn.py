@@ -10,37 +10,39 @@ import torch
 import torch.nn as nn
 
 from torchvision.models.detection import fasterrcnn_resnet50_fpn
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 
 
 class FasterRCNN(nn.Module):
     '''
     Faster R-CNN Class
     '''
-    def __init__(self, n_channels=3, n_classes=91, pretrained=False):
+    def __init__(self, num_channels=3, num_classes=91, pretrained=False, min_size=512):
         super(FasterRCNN, self).__init__()
 
-        self.n_channels = n_channels
-        self.n_classes = n_classes
+        self.num_channels = num_channels
+        self.num_classes = num_classes
         self.pretrained = pretrained
+        self.min_size = min_size
 
         # Input conv is applied to convert the input to 3 ch depth
         self.inconv = None
-        if n_channels != 3:
+        if num_channels != 3:
             self.inconv = nn.Sequential()
-            self.inconv.add_module("conv_0", nn.Conv2d(n_channels, 3, 1, stride=1, padding=0))
+            self.inconv.add_module("conv_0", nn.Conv2d(num_channels, 3, 1, stride=1, padding=0))
             self.inconv.add_module("bnorm_0", nn.BatchNorm2d(3))
             self.inconv.add_module("relu_0", nn.ReLU(inplace=True))
 
         # Pre-trained model needs to be an identical network
         if pretrained:
-            self.body = fasterrcnn_resnet50_fpn(pretrained=pretrained, num_classes=91, min_size=512)
+            self.body = fasterrcnn_resnet50_fpn(pretrained=pretrained, num_classes=91, min_size=min_size)
             # Reset output
-            if n_classes != 91:
-                self.body.roi_heads.box_predictor.cls_score = nn.Linear(in_features=1024, out_features=n_classes, bias=True)
-                self.body.roi_heads.box_predictor.bbox_pred = nn.Linear(in_features=1024, out_features=4*n_classes, bias=True)
+            if num_classes != 91:
+                in_features = self.body.roi_heads.box_predictor.cls_score.in_features
+                self.body.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
         else:
-            self.body = fasterrcnn_resnet50_fpn(pretrained=pretrained, num_classes=n_classes, min_size=512)
+            self.body = fasterrcnn_resnet50_fpn(pretrained=pretrained, num_classes=num_classes, min_size=min_size)
 
 
     def forward(self, x, tgts=None):
@@ -97,8 +99,8 @@ if __name__ == "__main__":
     targets = [tgts]#, tgts]
 
     # Model
-    model = FasterRCNN(n_channels=1, pretrained=True).to(device)
-    #model = FasterRCNN(n_channels=3, pretrained=True).to(device)
+    model = FasterRCNN(num_channels=1, num_classes=2, pretrained=True).to(device)
+    #model = FasterRCNN(num_channels=3, pretrained=True).to(device)
     model.eval()
     #model.train()
 

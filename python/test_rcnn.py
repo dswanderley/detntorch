@@ -135,24 +135,27 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Get data configuration
-    gt_path = "data/ovarian/gt/"
-    im_path = "data/ovarian/im/"
-    classes=2
+    n_classes = 2
     class_names = ['background','follicle']
+    weights_path  = "../weights/20200301_1958_faster_rcnn_weights.pth.tar"#None
 
     # Dataset
-    dataset = OvaryDataset(im_dir='../datasets/ovarian/im/test/',
+    dataset = OvaryDataset(im_dir='../datasets/ovarian/gt/test/',
                            gt_dir='../datasets/ovarian/gt/test/',
                            clahe=False, transform=False,
                            ovary_inst=False,
                            out_tuple=True)
     data_loader = DataLoader(dataset,
-                            batch_size=4,
+                            batch_size=1,
                             shuffle=False,
-                            collate_fn=dataset.collate_fn_list)
-
+                            collate_fn=dataset.collate_fn_rcnn)
+                            
     # Initiate model
-    model = FasterRCNN(n_channels=1, pretrained=True).to(device)
+    model = FasterRCNN(num_channels=1, num_classes=n_classes, pretrained=True).to(device)
+    if weights_path is not None:
+        # Load state dictionary
+        state = torch.load(weights_path)
+        model.load_state_dict(state['state_dict'])
 
     # Eval
     evaluation_metrics, ap_class = evaluate(model,
