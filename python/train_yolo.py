@@ -17,7 +17,7 @@ from torch.autograd import Variable
 
 import utils.transformations as tsfrm
 
-from test import evaluate
+from test_yolo import evaluate
 #from models.modules import Yolo_net
 from models.yolo import Darknet
 from models.yolo_utils.utils import *
@@ -195,7 +195,7 @@ if __name__ == "__main__":
     from utils.helper import gettrainname
 
     # Input parameters
-    n_epochs = 300
+    n_epochs = 150
     batch_size = 4
     input_channels = 1
     network_name = 'Yolo_v3'
@@ -231,8 +231,9 @@ if __name__ == "__main__":
                            out_tuple=True)
 
     # Optmization
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-
+    #optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.SGD(model.parameters(), lr=0.005,
+                                momentum=0.9, weight_decay=0.0005)
 
      # Set logs folder
     #logger = Logger('../logs/' + train_name + '/')

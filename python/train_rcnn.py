@@ -220,20 +220,21 @@ if __name__ == "__main__":
                            ])
 
     # Dataset definitions
-    dataset_train = OvaryDataset(im_dir='../datasets/ovarian/gt/train/',
+    dataset_train = OvaryDataset(im_dir='../datasets/ovarian/im/train/',
                            gt_dir='../datasets/ovarian/gt/train/',
                            clahe=False, transform=transform,
                            ovary_inst=False,
                            out_tuple=True)
-    dataset_val = OvaryDataset(im_dir='../datasets/ovarian/gt/val/',
+    dataset_val = OvaryDataset(im_dir='../datasets/ovarian/im/val/',
                            gt_dir='../datasets/ovarian/gt/val/',
                            clahe=False, transform=False,
                            ovary_inst=False,
                            out_tuple=True)
 
     # Optmization
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-
+    #optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.SGD(model.parameters(), lr=0.005,
+                                momentum=0.9, weight_decay=0.0005)
 
      # Set logs folder
     #logger = Logger('../logs/' + train_name + '/')
