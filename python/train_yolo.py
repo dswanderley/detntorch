@@ -14,6 +14,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torch.autograd import Variable
+from terminaltables import AsciiTable
 
 import utils.transformations as tsfrm
 
@@ -31,7 +32,7 @@ class Training:
     """
 
     def __init__(self, model, device, train_set, valid_set, optim,
-                 train_name='yolov3', logger=None):
+                 class_names, train_name='yolov3', logger=None):
         '''
             Training class - Constructor
         '''
@@ -42,6 +43,7 @@ class Training:
         self.optimizer = optim
         self.train_name = train_name
         self.logger = logger
+        self.class_names = class_names
         self.gradient_accumulations = 2
         self.iou_thres = 0.5
         self.conf_thres = 0.5
@@ -79,7 +81,7 @@ class Training:
     def _iterate_train(self, data_loader):
 
         # Init loss count
-        loss_train_sum = 0
+        lotal_loss = 0
         data_train_len = len(self.train_set)
 
         # Active train
@@ -89,9 +91,11 @@ class Training:
         # Batch iteration - Training dataset
         for batch_idx, (names, imgs, targets) in enumerate(tqdm.tqdm(data_loader, desc="Training epoch")):
             batches_done = len(data_loader) * self.epoch + batch_idx
-
-            imgs = Variable(imgs.to(device))
-            targets = Variable(targets.to(device), requires_grad=False)
+            
+            targets = Variable(targets.to(self.device), requires_grad=False)
+            imgs = Variable(imgs.to(self.device))
+            bs = len(imgs)
+            
             # Forward and loss
             loss, output = self.model(imgs, targets=targets)
             loss.backward()
@@ -100,27 +104,20 @@ class Training:
                 # Accumulates gradient before each step
                 self.optimizer.step()
                 self.optimizer.zero_grad()
+            
+            self.model.seen += imgs.size(0)
 
-            # Update epoch loss
-            loss_train_sum += len(imgs) * loss.item()
+            # Log metrics at each YOLO layer
+            batch_factor = bs / data_train_len
+            for i, metric in enumerate(self.metrics):
+                out_metrics = [(yolo.metrics.get(metric, 0) * batch_factor) for yolo in self.model.yolo_layers]
+                # Fill average
+                for j in range(len(self.avg_metrics[metric])):
+                    self.avg_metrics[metric][j] += out_metrics[j]
 
-        # Calculate average loss per epoch
-        avg_loss_train = loss_train_sum / data_train_len
+            lotal_loss += loss.item() * batch_factor
 
-        return avg_loss_train
-
-
-    def _iterate_val(self, data_loader):
-
-        evaluation_metrics, ap_class = evaluate(self.model,
-                                        data_loader,
-                                        self.iou_thres,
-                                        self.conf_thres,
-                                        self.nms_thres,
-                                        1, # batch_size
-                                        self.device)
-
-        return evaluation_metrics
+        return lotal_loss
 
 
     def _logging(self, epoch, avg_loss_train, val_evaluation):
@@ -161,20 +158,54 @@ class Training:
         for e in range(epochs):
             self.epoch = e
             print('Starting epoch {}/{}.'.format(self.epoch + 1, epochs))
+            log_str = ''
+            metric_table = [["Metrics", *["YOLO Layer " + str(i) for i in range(len(model.yolo_layers))]]]
+            self.avg_metrics = { i : [0]*len(self.model.yolo_layers) for i in self.metrics }
 
             # ========================= Training =============================== #
-            avg_loss_train = self._iterate_train(data_loader_train)
-            print('training loss:  {:f}'.format(avg_loss_train))
+            loss_train = self._iterate_train(data_loader_train)
+            
+            # Log metrics at each YOLO layer
+            for i, metric in enumerate(self.metrics):
+                formats = {m: "%.6f" for m in self.metrics}
+                formats["grid_size"] = "%2d"
+                formats["cls_acc"] = "%.2f%%"
+                row_metrics = self.avg_metrics[metric]
+                metric_table += [[metric, *row_metrics]]
 
-            # ========================= Validation ============================= #
-            val_evaluation = self._iterate_val(data_loader_val)
-            val_precision = val_evaluation[0]
-            print(val_precision[0] + ': {:f}'.format(val_precision[1]))
+            log_str += AsciiTable(metric_table).table
+            log_str += "\nTotal loss: %0.5f"%loss_train
+
+            print(log_str)
             print('')
 
+            # ========================= Validation ============================= #
+            precision, recall, AP, f1, ap_class = evaluate(self.model,
+                                        data_loader_val,
+                                        self.iou_thres,
+                                        self.conf_thres,
+                                        self.nms_thres,
+                                        1, # batch_size
+                                        self.device)
+            # Group metrics
+            evaluation_metrics = [
+                ("val_precision", precision.mean()),
+                ("val_recall", recall.mean()),
+                ("val_mAP", AP.mean()),
+                ("val_f1", f1.mean()),
+            ]
+                                        
+            # Print class APs and mAP
+            ap_table = [["Index", "Class name", "AP"]]
+            for i, c in enumerate(ap_class):
+                ap_table += [[c, self.class_names[c], "%.5f" % AP[i]]]
+            print(AsciiTable(ap_table).table)
+            print("mAP: "+ str(AP.mean()))
+            print('\n')
+
             # ======================== Save weights ============================ #
-            if best_precision < val_precision[1]:
-                best_precision = val_precision[1]
+            if best_precision < loss_train:
+                best_precision = loss_train
                 # save
                 self._saveweights({
                 'epoch': self.epoch + 1,
@@ -198,14 +229,13 @@ if __name__ == "__main__":
     n_epochs = 150
     batch_size = 4
     input_channels = 1
-    network_name = 'Yolo_v3'
+    network_name = 'Yolo_v3_tiny'
     train_name = gettrainname(network_name)
 
-    data_config_path = 'config/ovarian.data'
-    mode_config_path = 'config/yolov3.cfg'
+    cls_names = ['background','follicle','ovary']
+    mode_config_path = 'config/yolov3-tiny.cfg'
 
     # Load network model
-    #model = Yolo_net(input_channels)
     model = Darknet(mode_config_path)
 
     # Load CUDA if exist
@@ -231,17 +261,18 @@ if __name__ == "__main__":
                            out_tuple=True)
 
     # Optmization
-    #optimizer = optim.Adam(model.parameters(), lr=0.001)
-    optimizer = optim.SGD(model.parameters(), lr=0.005,
-                                momentum=0.9, weight_decay=0.0005)
-
+    optimizer = optim.Adam(model.parameters())
+    #optimizer = optim.SGD(model.parameters(), lr=0.005,
+    #                            momentum=0.9, weight_decay=0.0005)
+    
      # Set logs folder
     #logger = Logger('../logs/' + train_name + '/')
 
     # Run training
     training = Training(model, device, dataset_train, dataset_val,
                         optimizer, 
-                        #logger=logger, 
+                        #logger=logger,
+                        class_names=cls_names[:2],
                         train_name=train_name)
     training.train(epochs=n_epochs, batch_size=batch_size)
 
