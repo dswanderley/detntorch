@@ -336,25 +336,24 @@ class OvaryDataset(Dataset):
         '''
             Merges a list of samples to form a faster rcnn batch (coco based)
 
-            Output: list of dict
-                - im_name:    tuple with filenames
-                - image:     tensor - size (batch_size, channels, height, width)
+            Output: three lists
+                - names:  tuple with filenames
+                - images:   tensor - size (batch_size, channels, height, width)
                 - targets:  dict - {labels, boxes: [x1, y1, x2, y2]}
 
         '''
-        batch_list = []
+        names = []
+        images = []
+        targets = []
+        # Unpack data to different lists
         for b in batch:
-            batch_list.append(
-                {
-                    'im_name': b[0],
-                    'image': b[1],
-                    'targets': {
-                                'boxes': b[8],
-                                'labels': b[9]
-                            }
-                }
-            )
-        return batch_list
+            names.append(b[0])
+            images.append(b[1])
+            targets.append({
+                            'boxes': b[8],
+                            'labels': b[9]
+                            })
+        return names, images, targets
 
 
     def collate_fn_yolo(self, batch):

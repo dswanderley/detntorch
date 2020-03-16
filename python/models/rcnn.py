@@ -66,16 +66,16 @@ if __name__ == "__main__":
     from skimage import io
     from skimage.color import rgb2gray
 
-    im_path = os.path.join('../datasets/cars', 'cars.jpg') 
-    image = io.imread(im_path) / 255.
+    #im_path = os.path.join('../datasets/cars', 'cars.jpg')
+    #image = io.imread(im_path) / 255.
     #torch_img = torch.from_numpy(image)
     #torch_img = torch_img.permute(2,0,1)
 
-    grayscale = rgb2gray(image)
-    torch_img = torch.from_numpy(grayscale)
-    torch_img.unsqueeze_(0)
+    #grayscale = rgb2gray(image)
+    #torch_img = torch.from_numpy(grayscale)
+    #torch_img.unsqueeze_(0)
 
-    torch_img.unsqueeze_(0)
+    #torch_img.unsqueeze_(0)
 
     # Load CUDA if exist
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -84,8 +84,9 @@ if __name__ == "__main__":
     # https://github.com/pytorch/vision/blob/master/references/detection/train.py
 
     # Images
-    #images = torch.randn(2, 1, 512, 512)
-    images = torch_img.float()
+    images = torch.randn(1, 1, 512, 512)
+    images = [images, images]
+    #images = [torch_img.float(), torch_img.float()]
     # Targets
     bbox = torch.FloatTensor([[120, 130, 300, 350], [200, 200, 250, 250]]) # [y1, x1, y2, x2] format
     lbls = torch.LongTensor([1, 2]) # 0 represents background
@@ -96,7 +97,7 @@ if __name__ == "__main__":
         'labels': lbls.to(device)
     }
     # targets to list (by batch)
-    targets = [tgts]#, tgts]
+    targets = [tgts, tgts]
 
     # Model
     model = FasterRCNN(num_channels=1, num_classes=2, pretrained=True).to(device)
@@ -105,8 +106,9 @@ if __name__ == "__main__":
     #model.train()
 
     # output
-    #loss_dict = model(images.to(device), targets)
-    loss_dict = model(images.to(device))
+    images = torch.FloatTensor(images)
+    loss_dict = model(images, targets)
+    #loss_dict = model(images#.to(device))
 
     for i in range(len(loss_dict)):
         img = image

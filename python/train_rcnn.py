@@ -65,7 +65,7 @@ class Training:
         self.model = self.model.to(self.device)
 
         # Batch iteration - Training dataset
-        for batch_idx, samples in enumerate(tqdm(data_loader, desc="Training epoch")):
+        for batch_idx, (names, imgs, targets) in enumerate(tqdm(data_loader, desc="Training epoch")):
             batches_done = len(data_loader) * self.epoch + batch_idx
 
             # Get data size
@@ -78,15 +78,7 @@ class Training:
 
             # Get images and targets
             images = torch.zeros(bs, ch, h, w)
-            targets = []
-            for i in range(bs):
-                images[i] = samples[i]['image'].to(self.device)
-                targets.append(
-                    {
-                        'boxes':  samples[i]['targets']['boxes'].to(self.device),
-                        'labels': samples[i]['targets']['labels'].to(self.device)
-                    }
-                )
+            targets.to(self.device)
 
             # Forward and loss
             loss_dict = self.model(images.to(self.device), targets)
@@ -241,7 +233,7 @@ if __name__ == "__main__":
 
     # Run training
     training = Training(model, device, dataset_train, dataset_val,
-                        optimizer, #logger=logger, 
+                        optimizer, #logger=logger,
                         train_name=train_name)
     training.train(epochs=n_epochs, batch_size=batch_size)
 
