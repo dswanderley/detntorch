@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 
 from torchvision.models.detection import fasterrcnn_resnet50_fpn
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor#, GeneralizedRCNNTransform
 
 
 class FasterRCNN(nn.Module):
@@ -29,9 +29,11 @@ class FasterRCNN(nn.Module):
         self.inconv = None
         if num_channels != 3:
             self.inconv = nn.Sequential()
-            self.inconv.add_module("conv_0", nn.Conv2d(num_channels, 3, 1, stride=1, padding=0))
-            self.inconv.add_module("bnorm_0", nn.BatchNorm2d(3))
-            self.inconv.add_module("relu_0", nn.ReLU(inplace=True))
+            #transform = GeneralizedRCNNTransform(min_size, max_size, image_mean, image_std)
+            #self.inconv.add_module("transform", GeneralizedRCNNTransform(min_size, min_size, image_mean, image_std))
+            self.inconv.add_module("conv0", nn.Conv2d(num_channels, 3, 1, stride=1, padding=0))
+            self.inconv.add_module("bn0", nn.BatchNorm2d(3))
+            self.inconv.add_module("relu", nn.ReLU(inplace=True))
 
         # Pre-trained model needs to be an identical network
         if pretrained:
@@ -51,7 +53,8 @@ class FasterRCNN(nn.Module):
             x = self.inconv(x)
         # Verify if is traning (this situation requires targets)
         if self.body.training:
-            x = list(im for im in x) # convert to list (as required)
+            if type(x) is not list:
+                x = list(im for im in x) # convert to list (as required)
             x_out = self.body(x,tgts)
         else:
             x_out = self.body(x)
@@ -66,16 +69,12 @@ if __name__ == "__main__":
     from skimage import io
     from skimage.color import rgb2gray
 
-    #im_path = os.path.join('../datasets/cars', 'cars.jpg')
-    #image = io.imread(im_path) / 255.
-    #torch_img = torch.from_numpy(image)
-    #torch_img = torch_img.permute(2,0,1)
+    im_path = os.path.join('../datasets/cars', 'cars.jpg')
+    image = io.imread(im_path) / 255.
 
-    #grayscale = rgb2gray(image)
-    #torch_img = torch.from_numpy(grayscale)
-    #torch_img.unsqueeze_(0)
-
-    #torch_img.unsqueeze_(0)
+    grayscale = rgb2gray(image)
+    torch_img = torch.from_numpy(grayscale).float()
+    torch_img.unsqueeze_(0)
 
     # Load CUDA if exist
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -84,10 +83,9 @@ if __name__ == "__main__":
     # https://github.com/pytorch/vision/blob/master/references/detection/train.py
 
     # Images
-    images = torch.randn(1, 1, 512, 512)
-    images = [images, images]
-    #images = [torch_img.float(), torch_img.float()]
-    # Targets
+    img_list = [torch_img, torch_img]
+    #images = torch.stack(img_list)
+    images = torch.randn(2, 1, 512, 512).float()
     bbox = torch.FloatTensor([[120, 130, 300, 350], [200, 200, 250, 250]]) # [y1, x1, y2, x2] format
     lbls = torch.LongTensor([1, 2]) # 0 represents background
 
@@ -102,13 +100,16 @@ if __name__ == "__main__":
     # Model
     model = FasterRCNN(num_channels=1, num_classes=2, pretrained=True).to(device)
     #model = FasterRCNN(num_channels=3, pretrained=True).to(device)
+
+    print(model)
+
     model.eval()
     #model.train()
 
     # output
-    images = torch.FloatTensor(images)
-    loss_dict = model(images, targets)
-    #loss_dict = model(images#.to(device))
+    #images = torch.FloatTensor(images)
+    loss_dict = model(images.to(device), targets)
+    #loss_dict = model(images.to(device))
 
     for i in range(len(loss_dict)):
         img = image

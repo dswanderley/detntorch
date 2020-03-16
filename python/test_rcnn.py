@@ -35,40 +35,24 @@ def evaluate(model, data_loader, batch_size, device, save_bb=False):
     labels = []         # to recieve targets
 
     # Batch iteration - Validation dataset
-    for batch_idx, samples in enumerate(data_loader):
-
-        # Get data size
-        bs = len(samples)
-        if len(samples[0]['image'].shape) < 3:
-            h, w = samples[0]['image'].shape
-            ch = 1
-        else:
-            ch, h, w = samples[0]['image'].shape
+    for batch_idx, (names, imgs, targets) in enumerate(data_loader):
 
         # Get images and targets
-        images = torch.zeros(bs, ch, h, w)
-        targets = []
-        names = []
-        for i in range(bs):
-            images[i] = samples[i]['image'].to(device)
-            targets.append(
-                {
-                    'boxes':  samples[i]['targets']['boxes'].to(device),
-                    'labels': samples[i]['targets']['labels'].to(device)
-                }
-            )
-            names.append(samples[i]['im_name'])
+        images = torch.stack(imgs).to(device)
+
+        targets = [{ 'boxes':  tgt['boxes'].to(device),'labels': tgt['labels'].to(device) } 
+                    for tgt in targets]
 
         # Run prediction
         with torch.no_grad():
-            outputs = model(images.to(device))
+            outputs = model(images)
 
         # [true_positives, pred_scores, pred_labels]
         batch_metrics = []
-        for j in range(bs):
+        for j in range(len(images)):
             out_pred = outputs[j]
-            target_boxes = targets[i]['boxes']
-            target_labels = targets[i]['labels']
+            target_boxes = targets[j]['boxes']
+            target_labels = targets[j]['labels']
 
             labels += target_labels.tolist()
 

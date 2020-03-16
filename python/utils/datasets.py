@@ -348,7 +348,10 @@ class OvaryDataset(Dataset):
         # Unpack data to different lists
         for b in batch:
             names.append(b[0])
-            images.append(b[1])
+            if len(b[1].shape) < 3:
+                images.append(b[1].unsqueeze(0))
+            else:
+                images.append(b[1])
             targets.append({
                             'boxes': b[8],
                             'labels': b[9]

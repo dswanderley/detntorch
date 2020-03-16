@@ -68,20 +68,17 @@ class Training:
         for batch_idx, (names, imgs, targets) in enumerate(tqdm(data_loader, desc="Training epoch")):
             batches_done = len(data_loader) * self.epoch + batch_idx
 
-            # Get data size
-            bs = len(samples)
-            if len(samples[0]['image'].shape) < 3:
-                h, w = samples[0]['image'].shape
-                ch = 1
-            else:
-                ch, h, w = samples[0]['image'].shape
-
             # Get images and targets
-            images = torch.zeros(bs, ch, h, w)
-            targets.to(self.device)
+            if self.model.num_channels == 3:
+                images = [img.to(self.device) for img in imgs]
+            else:
+                images = torch.stack(imgs).to(self.device)
+
+            targets = [{ 'boxes':  tgt['boxes'].to(self.device),'labels': tgt['labels'].to(self.device) } 
+                        for tgt in targets]
 
             # Forward and loss
-            loss_dict = self.model(images.to(self.device), targets)
+            loss_dict = self.model(images, targets)
 
             # Compute loss
             losses = sum(loss for loss in loss_dict.values())

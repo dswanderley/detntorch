@@ -60,30 +60,22 @@ if __name__ == "__main__":
     
     model.eval()
 
-    imgs = []  # Stores image paths
+    img_names = []  # Stores image paths
     img_detections = []  # Stores detections for each image index
 
     print("\nPerforming object detection:")
     prev_time = time.time()
-    for batch_i, samples in enumerate(dataloader):
-        img_paths = []
-        # Get data size
-        bs = len(samples)
-        if len(samples[0]['image'].shape) < 3:
-            h, w = samples[0]['image'].shape
-            ch = 1
-        else:
-            ch, h, w = samples[0]['image'].shape
-
+    for batch_i, (names, imgs, targets) in enumerate(dataloader):
+                
         # Get images and targets
-        images = torch.zeros(bs, ch, h, w)
-        for i in range(bs):
-            images[i] = samples[i]['image'].to(device)
-            img_paths.append(samples[i]['im_name'])
+        images = torch.stack(imgs).to(device)
+
+        targets = [{ 'boxes':  tgt['boxes'].to(device),'labels': tgt['labels'].to(device) } 
+                    for tgt in targets]
 
         # Get detections
         with torch.no_grad():
-            detections = model(images.to(device))
+            detections = model(images)
             #detections = non_max_suppression(detections, opt.conf_thres, opt.nms_thres)
 
         # Log progress
@@ -93,7 +85,7 @@ if __name__ == "__main__":
         print("\t+ Batch %d, Inference Time: %s" % (batch_i, inference_time))
 
         # Save image and detections
-        imgs.extend(img_paths)
+        img_names.extend(names)
         img_detections.extend(detections)
 
     # Bounding-box colors
@@ -102,7 +94,7 @@ if __name__ == "__main__":
 
     print("\nSaving images:")
     # Iterate through images and save plot of detections
-    for img_i, (fname, detections) in enumerate(zip(imgs, img_detections)):
+    for img_i, (fname, detections) in enumerate(zip(img_names, img_detections)):
 
         full_path = os.path.join(im_path, fname)
         print("(%d) Image: '%s'" % (img_i, full_path))
