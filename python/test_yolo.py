@@ -86,12 +86,14 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, batch_size, d
 
 
 if __name__ == "__main__":
+    
+    from terminaltables import AsciiTable
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
     parser.add_argument("--model_def", type=str, default="config/yolov3.cfg", help="path to model definition file")
 
-    parser.add_argument("--weights_path", type=str, default="../weights/yolov3.pth", help="path to weights file")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200308_2229_Yolo_v3_weights.pth.tar", help="path to weights file")
     parser.add_argument("--n_cpu", type=int, default=1, help="number of cpu threads to use during batch generation")
     parser.add_argument("--img_size", type=int, default=512, help="size of each image dimension")
 
@@ -137,17 +139,25 @@ if __name__ == "__main__":
 
     print("Compute mAP...")
 
-    evaluation_metrics, ap_class = evaluate(model,
-                                data_loader,
-                                opt.iou_thres,
-                                opt.conf_thres,
-                                opt.nms_thres,
-                                opt.batch_size,
-                                device=device,
-                                save_bb=True)
-
-    print("Average Precisions:")
+    precision, recall, AP, f1, ap_class = evaluate(model,
+                                        data_loader,
+                                        opt.iou_thres,
+                                        opt.conf_thres,
+                                        opt.nms_thres,
+                                        opt.batch_size,
+                                        device)
+    # Group metrics
+    evaluation_metrics = [
+        ("val_precision", precision.mean()),
+        ("val_recall", recall.mean()),
+        ("val_mAP", AP.mean()),
+        ("val_f1", f1.mean()),
+    ]
+                                
+    # Print class APs and mAP
+    ap_table = [["Index", "Class name", "AP"]]
     for i, c in enumerate(ap_class):
-        print("+ Class '{c}' ({class_names[c]}) - AP: {AP[i]}")
-
-    print("mAP: {AP.mean()}")
+        ap_table += [[c, class_names[c], "%.5f" % AP[i]]]
+    print(AsciiTable(ap_table).table)
+    print("mAP: "+ str(AP.mean()))
+    print('\n')
