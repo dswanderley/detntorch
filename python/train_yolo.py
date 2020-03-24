@@ -152,7 +152,8 @@ class Training:
                                         collate_fn=self.valid_set.collate_fn_yolo)
 
         # Define parameters
-        best_precision = 0    # Init best loss with a too high value
+        best_loss = 1000000    # Init best loss with a too high value
+        best_ap = 0            # Init best average precision as zero
 
         # Run epochs
         for e in range(epochs):
@@ -204,13 +205,15 @@ class Training:
             print('\n')
 
             # ======================== Save weights ============================ #
-            if best_precision < loss_train:
-                best_precision = loss_train
+            if (loss_train <= best_loss) and (AP.mean() >= best_ap):
+                best_loss = loss_train
+                best_ap = AP.mean()
                 # save
                 self._saveweights({
                 'epoch': self.epoch + 1,
                 'state_dict': self.model.state_dict(),
-                'best_precision': best_precision,
+                'best_loss_train': best_loss,
+                'best_ap_val': best_ap,
                 'optimizer': str(self.optimizer),
                 'optimizer_dict': self.optimizer.state_dict(),
                 'device': str(self.device)

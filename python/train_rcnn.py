@@ -137,7 +137,8 @@ class Training:
                                         collate_fn=self.valid_set.collate_fn_rcnn)
 
         # Define parameters
-        best_precision = 0    # Init best loss with a too high value
+        best_loss = 1000000    # Init best loss with a too high value
+        best_ap = 0            # Init best average precision as zero
 
         # Run epochs
         for e in range(epochs):
@@ -147,7 +148,6 @@ class Training:
             # ========================= Training =============================== #
             avg_loss_train = self._iterate_train(data_loader_train)
             print('Training loss:  {:f}'.format(avg_loss_train))
-            print('\n')
 
             # ========================= Validation ============================= #
             precision, recall, AP, f1, ap_class = evaluate(self.model,
@@ -172,16 +172,15 @@ class Training:
             print('\n')
 
             # ======================== Save weights ============================ #
-            # if best_precision < val_precision[1]:
-            # VAL PRECISION IS NOt WORKING
-                #best_precision = val_precision[1]
-            if best_precision < avg_loss_train:
-                best_precision = avg_loss_train
+            if (avg_loss_train <= best_loss) and (AP.mean() >= best_ap):
+                best_loss = avg_loss_train
+                best_ap = AP.mean()
                 # save
                 self._saveweights({
                 'epoch': self.epoch + 1,
                 'state_dict': self.model.state_dict(),
-                'best_loss_train': best_precision,
+                'best_loss_train': best_loss,
+                'best_ap_val': best_ap,
                 'optimizer': str(self.optimizer),
                 'optimizer_dict': self.optimizer.state_dict(),
                 'device': str(self.device)
