@@ -6,6 +6,7 @@ from utils.datasets import *
 
 import os
 import sys
+import csv
 import time
 import datetime
 import argparse
@@ -25,7 +26,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--image_folder", type=str, default="data/samples", help="path to dataset")
     parser.add_argument("--model_def", type=str, default="config/yolov3-tiny.cfg", help="path to model definition file")
-    parser.add_argument("--weights_path", type=str, default="../weights/20200308_2234_Yolo_v3_tiny_weights.pth.tar", help="path to weights file")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200324_1821_Yolo_v3_tiny_weights.pth.tar", help="path to weights file")
     parser.add_argument("--conf_thres", type=float, default=0.8, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
     parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
@@ -70,6 +71,8 @@ if __name__ == "__main__":
 
     imgs = []  # Stores image paths
     img_detections = []  # Stores detections for each image index
+    table = [] # Table of content
+    table.append(['fname', 'img_idx', 'bb_idx', 'cls_pred', 'conf', 'cls_conf', 'x1', 'y1', 'x2', 'y2'])
 
     print("\nPerforming object detection:")
     prev_time = time.time()
@@ -116,10 +119,15 @@ if __name__ == "__main__":
             unique_labels = detections[:, -1].cpu().unique()
             n_cls_preds = len(unique_labels)
             bbox_colors = random.sample(colors, n_cls_preds)
-            for x1, y1, x2, y2, conf, cls_conf, cls_pred in detections:
+            for bb_idx, (x1, y1, x2, y2, conf, cls_conf, cls_pred) in enumerate(detections):
+                # Add data to table
+                table.append([fname, str(img_i + 1), str(bb_idx + 1), 
+                                str(cls_pred.item()), str(conf.item()), str(cls_conf.item()), 
+                                str(x1.item()), str(y1.item()), str(x2.item()), str(y2.item())])
 
                 print("\t+ Label: %s, Conf: %.5f" % (classes[int(cls_pred)], cls_conf.item()))
 
+                # Prepare box to print
                 box_w = x2 - x1
                 box_h = y2 - y1
 
@@ -132,7 +140,7 @@ if __name__ == "__main__":
                 plt.text(
                     x1,
                     y1,
-                    s=classes[int(cls_pred)],
+                    s=classes[int(cls_pred)][0] + str(bb_idx + 1),
                     color="white",
                     verticalalignment="top",
                     bbox={"color": color, "pad": 0},
@@ -144,3 +152,8 @@ if __name__ == "__main__":
         plt.gca().yaxis.set_major_locator(NullLocator())
         plt.savefig(f"../predictions/yolo/{fname}.png", bbox_inches="tight", pad_inches=0.0)
         plt.close()
+
+    # Save results on a ;csv
+    with open(f"../predictions/yolo/results.csv", 'w', newline='') as fp:
+        writer = csv.writer(fp, delimiter=';')
+        writer.writerows(table)

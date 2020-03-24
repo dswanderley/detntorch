@@ -3,3 +3,5 @@ python/.vscode/
 *.pyc
 *.tar
 *.jpg
+predictions/faster_rcnn/
+predictions/yolo/

@@ -8,6 +8,7 @@ Created on Sun Mar 01 18:32:30 2020
 
 import os
 import sys
+import csv
 import time
 import datetime
 import argparse
@@ -36,7 +37,7 @@ if __name__ == "__main__":
     # Get data configuration
     n_classes = 2
     class_names = ['background','follicle']
-    weights_path  = "../weights/20200317_1727_faster_rcnn_weights.pth.tar"
+    weights_path  = "../weights/20200324_1836_faster_rcnn_weights.pth.tar"
     im_path = '../datasets/ovarian/im/test/'
     gt_path = '../datasets/ovarian/gt/test/'
 
@@ -62,6 +63,8 @@ if __name__ == "__main__":
 
     img_names = []  # Stores image paths
     img_detections = []  # Stores detections for each image index
+    table = [] # Table of content
+    table.append(['fname', 'img_idx', 'bb_idx', 'labels', 'scores', 'x1', 'y1', 'x2', 'y2'])
 
     print("\nPerforming object detection:")
     prev_time = time.time()
@@ -116,9 +119,14 @@ if __name__ == "__main__":
 
                 if cls_conf > 0.:
                     cls_pred = detections['labels'][idx].cpu()
+                    # Add data to table
+                    table.append([fname, str(img_i + 1), str(idx + 1), 
+                                str(cls_pred.item()), str(cls_conf.item()), 
+                                str(x1.item()), str(y1.item()), str(x2.item()), str(y2.item())])
 
                     print("\t+ Label: %s, Conf: %.5f" % (class_names[int(cls_pred)], cls_conf.item()))
 
+                    # Prepare box to print
                     box_w = x2 - x1
                     box_h = y2 - y1
 
@@ -143,3 +151,8 @@ if __name__ == "__main__":
         plt.gca().yaxis.set_major_locator(NullLocator())
         plt.savefig(f"../predictions/faster_rcnn/{fname}.png", bbox_inches="tight", pad_inches=0.0)
         plt.close()
+
+    # Save results on a ;csv
+    with open(f"../predictions/faster_rcnn/results.csv", 'w', newline='') as fp:
+        writer = csv.writer(fp, delimiter=';')
+        writer.writerows(table)
