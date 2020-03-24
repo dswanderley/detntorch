@@ -103,8 +103,15 @@ def evaluate(model, data_loader, batch_size, device, save_bb=False):
         true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
         precision, recall, AP, f1, ap_class = ap_per_class(true_positives, pred_scores, pred_labels, labels)
 
-    return precision, recall, AP, f1, ap_class
+    # Group metrics
+    evaluation_metrics = [
+            ("val_precision", precision.mean()),
+            ("val_recall", recall.mean()),
+            ("val_mAP", AP.mean()),
+            ("val_f1", f1.mean()),
+        ]
 
+    return evaluation_metrics, ap_class
 
 
 if __name__ == "__main__":
@@ -114,7 +121,7 @@ if __name__ == "__main__":
     # Get data configuration
     n_classes = 2
     class_names = ['background','follicle']
-    weights_path  = "../weights/20200317_1727_faster_rcnn_weights.pth.tar"#None
+    weights_path  = "../weights/20200301_1958_faster_rcnn_weights.pth.tar"#None
 
     # Dataset
     dataset = OvaryDataset(im_dir='../datasets/ovarian/gt/test/',
