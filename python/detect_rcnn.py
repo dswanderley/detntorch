@@ -36,7 +36,7 @@ if __name__ == "__main__":
     # Get data configuration
     n_classes = 2
     class_names = ['background','follicle']
-    weights_path  = "../weights/20200308_1313_faster_rcnn_weights.pth.tar"#None
+    weights_path  = "../weights/20200317_1727_faster_rcnn_weights.pth.tar"
     im_path = '../datasets/ovarian/im/test/'
     gt_path = '../datasets/ovarian/gt/test/'
 

@@ -13,6 +13,7 @@ import numpy as np
 
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from terminaltables import AsciiTable
 
 import utils.transformations as tsfrm
 
@@ -28,7 +29,7 @@ class Training:
         Training classe
     """
 
-    def __init__(self, model, device, train_set, valid_set, optim,
+    def __init__(self, model, device, train_set, valid_set, optim, class_names,
                  train_name='fast_rcnn', logger=None):
         '''
             Training class - Constructor
@@ -40,6 +41,7 @@ class Training:
         self.optimizer = optim
         self.train_name = train_name
         self.logger = logger
+        self.class_names = class_names
         self.epoch = 0
 
 
@@ -103,15 +105,6 @@ class Training:
         return loss_value
 
 
-    def _iterate_val(self, data_loader):
-
-        evaluation_metrics, ap_class = evaluate(self.model,
-                                            data_loader,
-                                            1, #batch_size,
-                                            device=self.device)
-        return evaluation_metrics
-
-
     def _logging(self, epoch, avg_loss_train, val_evaluation):
 
         # 1. Log scalar values (scalar summary)
@@ -153,13 +146,30 @@ class Training:
 
             # ========================= Training =============================== #
             avg_loss_train = self._iterate_train(data_loader_train)
-            print('training loss:  {:f}'.format(avg_loss_train))
+            print('Training loss:  {:f}'.format(avg_loss_train))
+            print('\n')
 
             # ========================= Validation ============================= #
-            val_evaluation = self._iterate_val(data_loader_val)
-            val_precision = val_evaluation[0]
-            print(val_precision[0] + ': {:f}'.format(val_precision[1]))
-            print('')
+            precision, recall, AP, f1, ap_class = evaluate(self.model,
+                                            data_loader_val,
+                                            1, #batch_size,
+                                            device=self.device)
+
+            # Group metrics
+            evaluation_metrics = [
+                ("val_precision", precision.mean()),
+                ("val_recall", recall.mean()),
+                ("val_mAP", AP.mean()),
+                ("val_f1", f1.mean()),
+            ]
+                                        
+            # Print class APs and mAP
+            ap_table = [["Index", "Class name", "AP"]]
+            for i, c in enumerate(ap_class):
+                ap_table += [[c, self.class_names[c], "%.5f" % AP[i]]]
+            print(AsciiTable(ap_table).table)
+            print("mAP: "+ str(AP.mean()))
+            print('\n')
 
             # ======================== Save weights ============================ #
             # if best_precision < val_precision[1]:
@@ -194,6 +204,8 @@ if __name__ == "__main__":
     input_channels = 1
     network_name = 'faster_rcnn'
     train_name = gettrainname(network_name)
+
+    cls_names = ['background','follicle','ovary']
 
     # Load CUDA if exist
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -231,6 +243,7 @@ if __name__ == "__main__":
     # Run training
     training = Training(model, device, dataset_train, dataset_val,
                         optimizer, #logger=logger,
+                        class_names=cls_names[:2],
                         train_name=train_name)
     training.train(epochs=n_epochs, batch_size=batch_size)
 

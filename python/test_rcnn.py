@@ -103,25 +103,19 @@ def evaluate(model, data_loader, batch_size, device, save_bb=False):
         true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
         precision, recall, AP, f1, ap_class = ap_per_class(true_positives, pred_scores, pred_labels, labels)
 
-    # Group metrics
-    evaluation_metrics = [
-            ("val_precision", precision.mean()),
-            ("val_recall", recall.mean()),
-            ("val_mAP", AP.mean()),
-            ("val_f1", f1.mean()),
-        ]
-
-    return evaluation_metrics, ap_class
+    return precision, recall, AP, f1, ap_class
 
 
 if __name__ == "__main__":
+    
+    from terminaltables import AsciiTable
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Get data configuration
     n_classes = 2
     class_names = ['background','follicle']
-    weights_path  = "../weights/20200301_1958_faster_rcnn_weights.pth.tar"#None
+    weights_path  = "../weights/20200317_1727_faster_rcnn_weights.pth.tar"#None
 
     # Dataset
     dataset = OvaryDataset(im_dir='../datasets/ovarian/gt/test/',
@@ -142,14 +136,24 @@ if __name__ == "__main__":
         model.load_state_dict(state['state_dict'])
 
     # Eval
-    evaluation_metrics, ap_class = evaluate(model,
+    precision, recall, AP, f1, ap_class  = evaluate(model,
                                 data_loader,
                                 4,
                                 device=device,
                                 save_bb=True)
 
-    print("Average Precisions:")
-    for i, c in enumerate(ap_class):
-        print("+ Class '{c}' ({class_names[c]}) - AP: {AP[i]}")
+    # Group metrics
+    evaluation_metrics = [
+        ("val_precision", precision.mean()),
+        ("val_recall", recall.mean()),
+        ("val_mAP", AP.mean()),
+        ("val_f1", f1.mean()),
+    ]
 
-    print("mAP: {AP.mean()}")
+     # Print class APs and mAP
+    ap_table = [["Index", "Class name", "AP"]]
+    for i, c in enumerate(ap_class):
+        ap_table += [[c, class_names[c], "%.5f" % AP[i]]]
+    print(AsciiTable(ap_table).table)
+    print("mAP: "+ str(AP.mean()))
+    print('\n')

@@ -409,7 +409,7 @@ def printBoudingBoxes(img, bboxes, score=None, lbl=None):
 
     # Check image type
     if type(img) == torch.Tensor or type(img) == torch.tensor:
-        im_np = img.permute(1,2,0).data.numpy()
+        im_np = img.permute(1,2,0).data.cpu().numpy()
     else:
         im_np = img
 
