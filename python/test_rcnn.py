@@ -22,6 +22,49 @@ from utils.datasets import OvaryDataset, printBoudingBoxes
 from utils.logger import Logger
 
 
+
+def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
+    """
+    Removes detections with lower object confidence score than 'conf_thres' and performs
+    Non-Maximum Suppression to further filter detections.
+    Returns detections with shape:
+        (x1, y1, x2, y2, score, class_pred)
+    """
+    output = [None for _ in range(len(prediction))]
+    for image_i, pred in enumerate(prediction):
+        boxes = pred['boxes']
+        labels = pred['labels'].unsqueeze(1)
+        scores = pred['scores'].unsqueeze(1)
+        image_pred = torch.cat((boxes, scores, labels.float()), 1)
+        # Filter out confidence scores below threshold
+        image_pred = image_pred[image_pred[:, 4] >= conf_thres]
+        # If none are remaining => process next image
+        if not image_pred.size(0):
+            continue
+        # Object confidence times class confidence
+        score = image_pred[:, 4]
+        # Sort by it
+        image_pred = image_pred[(-score).argsort()]
+        #class_confs, class_preds = image_pred[:, 4:].max(1, keepdim=True)
+        detections = image_pred
+        # Perform non-maximum suppression
+        keep_boxes = []
+        while detections.size(0):
+            large_overlap = bbox_iou(detections[0, :4].unsqueeze(0), detections[:, :4]) > nms_thres
+            label_match = detections[0, -1] == detections[:, -1]
+            # Indices of boxes with lower confidence scores, large IOUs and matching labels
+            invalid = large_overlap & label_match
+            weights = detections[invalid, 4:5]
+            # Merge overlapping bboxes by order of confidence
+            detections[0, :4] = (weights * detections[invalid, :4]).sum(0) / weights.sum()
+            keep_boxes += [detections[0]]
+            detections = detections[~invalid]
+        if keep_boxes:
+            output[image_i] = torch.stack(keep_boxes)
+
+    return output
+
+
 def evaluate(model, data_loader, batch_size, device, save_bb=False):
     """
         Evaluate model
@@ -46,6 +89,8 @@ def evaluate(model, data_loader, batch_size, device, save_bb=False):
         # Run prediction
         with torch.no_grad():
             outputs = model(images)
+
+        test = non_max_suppression(outputs)
 
         # [true_positives, pred_scores, pred_labels]
         batch_metrics = []
@@ -78,18 +123,18 @@ def evaluate(model, data_loader, batch_size, device, save_bb=False):
                     true_positives[pred_i] = 1
                     detected_boxes += [box_index]
 
-            batch_metrics.append([true_positives, pred_scores.cpu(), pred_labels.cpu()])
+                batch_metrics.append([true_positives, pred_scores.cpu(), pred_labels.cpu()])
 
-        # Save images if needed
-        if save_bb:
-            im_name = names[j]
-            im = images[j]
-            # Get RGB image with BB
-            im_np = printBoudingBoxes(im, pred_boxes, lbl=pred_labels, score=pred_scores)
-            # Save image
-            Image.fromarray((255*im_np).astype(np.uint8)).save('../predictions/faster_rcnn/' + im_name)
+                # Save images if needed
+                if save_bb:
+                    im_name = names[j]
+                    im = images[j]
+                    # Get RGB image with BB
+                    im_np = printBoudingBoxes(im, pred_boxes, lbl=pred_labels, score=pred_scores)
+                    # Save image
+                    Image.fromarray((255*im_np).astype(np.uint8)).save('../predictions/faster_rcnn/' + im_name)
 
-    sample_metrics += batch_metrics
+            sample_metrics += batch_metrics
 
     # Protect in case of no object detected
     if len(sample_metrics) == 0:
@@ -115,10 +160,10 @@ if __name__ == "__main__":
     # Get data configuration
     n_classes = 2
     class_names = ['background','follicle']
-    weights_path  = "../weights/20200317_1727_faster_rcnn_weights.pth.tar"#None
+    weights_path  = "../weights/20200324_1957_faster_rcnn_weights.pth.tar"#None
 
     # Dataset
-    dataset = OvaryDataset(im_dir='../datasets/ovarian/gt/test/',
+    dataset = OvaryDataset(im_dir='../datasets/ovarian/im/test/',
                            gt_dir='../datasets/ovarian/gt/test/',
                            clahe=False, transform=False,
                            ovary_inst=False,
