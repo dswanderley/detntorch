@@ -68,7 +68,7 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, batch_size, d
                 # Get RGB image with BB
                 im_np = printBoudingBoxes(im, out_bb)
                 # Save image
-                Image.fromarray((255*im_np).astype(np.uint8)).save('../predictions/'+im_name)
+                Image.fromarray((255*im_np).astype(np.uint8)).save('../yolo/predictions/'+im_name)
 
     # Protect in case of no object detected
     if len(sample_metrics) == 0:
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
     parser.add_argument("--model_def", type=str, default="config/yolov3.cfg", help="path to model definition file")
 
-    parser.add_argument("--weights_path", type=str, default="../weights/20200308_2229_Yolo_v3_weights.pth.tar", help="path to weights file")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200324_2047_Yolo_v3_weights.pth.tar", help="path to weights file")
     parser.add_argument("--n_cpu", type=int, default=1, help="number of cpu threads to use during batch generation")
     parser.add_argument("--img_size", type=int, default=512, help="size of each image dimension")
 

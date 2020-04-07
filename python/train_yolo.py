@@ -230,13 +230,13 @@ if __name__ == "__main__":
 
     # Input parameters
     n_epochs = 150
-    batch_size = 4
+    batch_size = 6
     input_channels = 1
-    network_name = 'Yolo_v3_tiny'
+    network_name = 'Yolo_v3_tiny_fol'#'Yolo_v3_tiny'
     train_name = gettrainname(network_name)
 
     cls_names = ['background','follicle','ovary']
-    mode_config_path = 'config/yolov3-tiny.cfg'
+    mode_config_path = 'config/yolov3-tiny_fol.cfg'#'config/yolov3-tiny.cfg'
 
     # Load network model
     model = Darknet(mode_config_path)

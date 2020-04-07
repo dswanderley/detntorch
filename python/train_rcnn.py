@@ -199,7 +199,7 @@ if __name__ == "__main__":
     # Input parameters
     n_classes = 2
     n_epochs = 150
-    batch_size = 4
+    batch_size = 8
     input_channels = 1
     network_name = 'faster_rcnn'
     train_name = gettrainname(network_name)
