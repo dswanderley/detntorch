@@ -30,7 +30,7 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
     Returns detections with shape:
         (x1, y1, x2, y2, score, class_pred)
     """
-    output = [None for _ in range(len(prediction))]
+    output = [{'boxes':None, 'labels':None, 'scores':None} for _ in range(len(prediction))]
     for image_i, pred in enumerate(prediction):
         boxes = pred['boxes']
         labels = pred['labels'].unsqueeze(1)
@@ -60,7 +60,9 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
             keep_boxes += [detections[0]]
             detections = detections[~invalid]
         if keep_boxes:
-            output[image_i] = torch.stack(keep_boxes)
+            output[image_i]['boxes'] = torch.stack(keep_boxes)[:,:4]
+            output[image_i]['labels'] = torch.stack(keep_boxes)[:,5]
+            output[image_i]['scores'] = torch.stack(keep_boxes)[:,4]
 
     return output
 
@@ -89,8 +91,7 @@ def evaluate(model, data_loader, batch_size, device, save_bb=False):
         # Run prediction
         with torch.no_grad():
             outputs = model(images)
-
-        test = non_max_suppression(outputs)
+            outputs = non_max_suppression(outputs) # Removes detections with lower score 
 
         # [true_positives, pred_scores, pred_labels]
         batch_metrics = []
