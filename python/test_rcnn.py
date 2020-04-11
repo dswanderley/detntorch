@@ -22,7 +22,6 @@ from utils.datasets import OvaryDataset, printBoudingBoxes
 from utils.logger import Logger
 
 
-
 def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
     """
     Removes detections with lower object confidence score than 'conf_thres' and performs
@@ -61,17 +60,61 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
             detections = detections[~invalid]
         if keep_boxes:
             output[image_i]['boxes'] = torch.stack(keep_boxes)[:,:4]
-            output[image_i]['labels'] = torch.stack(keep_boxes)[:,5]
-            output[image_i]['scores'] = torch.stack(keep_boxes)[:,4]
+            output[image_i]['labels'] = torch.stack(keep_boxes)[:,-1]
+            output[image_i]['scores'] = torch.stack(keep_boxes)[:,4:-1]
 
     return output
+
+
+
+def batch_statistics(outputs, targets, iou_threshold):
+    """ Compute true positives, predicted scores and predicted labels per sample """
+    batch_metrics = []
+    for sample_i in range(len(outputs)):
+
+        if outputs[sample_i] is None:
+            continue
+
+        if outputs[sample_i]['boxes'] is None:
+            continue
+
+        output = outputs[sample_i]
+        pred_boxes = output['boxes'] 
+        pred_scores = output['scores'] if len(output['scores'].shape) == 1 else output['scores'].squeeze()
+        pred_labels = output['labels'] if len(output['labels'].shape) == 1 else output['labels'].squeeze()
+
+        true_positives = np.zeros(pred_boxes.shape[0])
+
+        annotations = targets[sample_i]
+        target_labels = annotations['labels']
+        target_boxes = annotations['boxes']
+
+        if len(target_boxes):
+            detected_boxes = []
+            
+            for pred_i, (pred_box, pred_label) in enumerate(zip(pred_boxes, pred_labels)):
+
+                # If targets are found break
+                if len(detected_boxes) == len(pred_boxes):
+                    break
+
+                # Ignore if label is not one of the target labels
+                if pred_label not in target_labels:
+                    continue
+
+                iou, box_index = bbox_iou(pred_box.unsqueeze(0), target_boxes).max(0)
+                if iou >= iou_threshold and box_index not in detected_boxes:
+                    true_positives[pred_i] = 1
+                    detected_boxes += [box_index]
+        batch_metrics.append([true_positives, pred_scores.cpu(), pred_labels.cpu()])
+    return batch_metrics
 
 
 def evaluate(model, data_loader, batch_size, device, save_bb=False):
     """
         Evaluate model
     """
-    iou_threshold = 0.5
+    iou_thres = 0.5
     # To evaluate on validation set
     model.eval()
     model = model.to(device)
@@ -84,7 +127,10 @@ def evaluate(model, data_loader, batch_size, device, save_bb=False):
 
         # Get images and targets
         images = torch.stack(imgs).to(device)
-
+        # Labels
+        for tgt in targets:
+            labels += tgt['labels'].tolist()
+        # Targets
         targets = [{ 'boxes':  tgt['boxes'].to(device),'labels': tgt['labels'].to(device) } 
                     for tgt in targets]
 
@@ -93,49 +139,22 @@ def evaluate(model, data_loader, batch_size, device, save_bb=False):
             outputs = model(images)
             outputs = non_max_suppression(outputs) # Removes detections with lower score 
 
-        # [true_positives, pred_scores, pred_labels]
-        batch_metrics = []
-        for j in range(len(images)):
-            out_pred = outputs[j]
-            target_boxes = targets[j]['boxes']
-            target_labels = targets[j]['labels']
+        sample_metrics += batch_statistics(outputs,
+                                targets,
+                                iou_threshold=iou_thres) # [true_positives, pred_scores, pred_labels]
 
-            labels += target_labels.tolist()
-
-            pred_boxes = out_pred['boxes']
-            pred_labels = out_pred['labels']
-            pred_scores = out_pred['scores']
-
-            true_positives = np.zeros(pred_boxes.shape[0])
-            detected_boxes = []
-
-            for pred_i, (pred_box, pred_label) in enumerate(zip(pred_boxes, pred_labels)):
-
-                # If targets are found break
-                if len(detected_boxes) == len(target_boxes):
-                    break
-
-                # Ignore if label is not one of the target labels
-                if pred_label not in target_labels:
-                    continue
-
-                iou, box_index = bbox_iou(pred_box.unsqueeze(0), target_boxes).max(0)
-                if iou >= iou_threshold and box_index not in detected_boxes:
-                    true_positives[pred_i] = 1
-                    detected_boxes += [box_index]
-
-                batch_metrics.append([true_positives, pred_scores.cpu(), pred_labels.cpu()])
-
-                # Save images if needed
-                if save_bb:
-                    im_name = names[j]
-                    im = images[j]
-                    # Get RGB image with BB
-                    im_np = printBoudingBoxes(im, pred_boxes, lbl=pred_labels, score=pred_scores)
-                    # Save image
-                    Image.fromarray((255*im_np).astype(np.uint8)).save('../predictions/faster_rcnn/' + im_name)
-
-            sample_metrics += batch_metrics
+        # Save images if needed
+        if save_bb:
+            for i in range(len(names)):
+                im_name = names[i]
+                im = imgs[i]
+                out_bb = outputs[i]
+                # Get RGB image with BB
+                im_np = printBoudingBoxes(im, out_bb['boxes'], 
+                                            lbl=out_bb['labels'], 
+                                            score=out_bb['scores'])
+                # Save image
+                Image.fromarray((255*im_np).astype(np.uint8)).save('../predictions/faster_rcnn/' + im_name)
 
     # Protect in case of no object detected
     if len(sample_metrics) == 0:
@@ -170,7 +189,7 @@ if __name__ == "__main__":
                            ovary_inst=False,
                            out_tuple=True)
     data_loader = DataLoader(dataset,
-                            batch_size=1,
+                            batch_size=4,
                             shuffle=False,
                             collate_fn=dataset.collate_fn_rcnn)
                             

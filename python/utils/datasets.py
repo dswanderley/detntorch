@@ -443,7 +443,7 @@ def printBoudingBoxes(img, bboxes, score=None, lbl=None):
                                     [x1, x2, x2, x1],
                                     shape=im_np.shape, clip=True)
             # Write rectangle on
-            im_np[rr, cc, cla] = dtn
+            im_np[rr, cc, int(cla)] = dtn
 
     return im_np
 

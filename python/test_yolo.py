@@ -68,7 +68,7 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, batch_size, d
                 # Get RGB image with BB
                 im_np = printBoudingBoxes(im, out_bb)
                 # Save image
-                Image.fromarray((255*im_np).astype(np.uint8)).save('../predictions/yolo/'+im_name)
+                Image.fromarray((255*im_np).astype(np.uint8)).save('../predictions/yolo/' + im_name)
 
     # Protect in case of no object detected
     if len(sample_metrics) == 0:
