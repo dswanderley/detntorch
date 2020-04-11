@@ -80,8 +80,8 @@ def batch_statistics(outputs, targets, iou_threshold):
 
         output = outputs[sample_i]
         pred_boxes = output['boxes'] 
-        pred_scores = output['scores'] if len(output['scores'].shape) == 1 else output['scores'].squeeze()
-        pred_labels = output['labels'] if len(output['labels'].shape) == 1 else output['labels'].squeeze()
+        pred_scores = output['scores'] if len(output['scores'].shape) == 1 else output['scores'][:,0]
+        pred_labels = output['labels'] if len(output['labels'].shape) == 1 else output['labels'][:,0]
 
         true_positives = np.zeros(pred_boxes.shape[0])
 
