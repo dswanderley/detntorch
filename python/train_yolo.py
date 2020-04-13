@@ -124,7 +124,7 @@ class Training:
 
         # 1. Log scalar values (scalar summary)
         info = val_evaluation
-        info.append(('train_avg_loss', avg_loss_train))
+        info.append(('train_lotal_loss', avg_loss_train))
         for tag, value in info:
             self.logger.add_scalar(tag, value, epoch+1)
         

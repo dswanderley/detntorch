@@ -19,8 +19,6 @@ from PIL import Image
 from models.rcnn import FasterRCNN
 from models.yolo_utils.utils import *
 from utils.datasets import OvaryDataset, printBoudingBoxes
-from utils.logger import Logger
-
 
 def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
     """

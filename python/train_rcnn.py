@@ -12,6 +12,7 @@ import torch.optim as optim
 import numpy as np
 
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from terminaltables import AsciiTable
 
@@ -40,6 +41,7 @@ class Training:
         self.valid_set = valid_set
         self.optimizer = optim
         self.train_name = train_name
+        self.model_name = "_".join(train_name.split('_')[2:])
         self.logger = logger
         self.class_names = class_names
         self.epoch = 0
@@ -109,16 +111,25 @@ class Training:
 
         # 1. Log scalar values (scalar summary)
         info = val_evaluation
-        info.append(('avg_loss_train', avg_loss_train))
+        info.append(('train_avg_loss', avg_loss_train))
         for tag, value in info:
-            self.logger.scalar_summary(tag, value, epoch+1)
-
+            self.logger.add_scalar(tag, value, epoch+1)
+        
         # 2. Log values and gradients of the parameters (histogram summary)
-        for tag, value in self.model.named_parameters():
-            tag = tag.replace('.', '/')
-            self.logger.histo_summary(tag, value.data.cpu().numpy(), epoch+1)
-            if not value.grad is None:
-                self.logger.histo_summary(tag +'/grad', value.grad.data.cpu().numpy(), epoch+1)
+        for rcnn_tag, value in self.model.named_parameters():
+            # Define tag name
+            tag_parts = rcnn_tag.split('.')
+            if tag_parts[0] == 'inconv':
+                tag = self.model_name + '/backbone/' + '/'.join(tag_parts[1:])
+            else:
+                tag = self.model_name + '/' + '/'.join(tag_parts[1:])
+            # Ignore bias from batch normalization
+            if (not 'bn' in tag) or (not 'bias' in tag):
+                # add data to histogram
+                self.logger.add_histogram(tag, value.data.cpu().numpy(), epoch+1)
+                # add gradient if exist
+                if not value.grad is None:
+                    self.logger.add_histogram(tag +'/grad', value.grad.data.cpu().numpy(), epoch+1)
 
 
     def train(self, epochs=100, batch_size=4):
@@ -193,7 +204,7 @@ class Training:
 
             # ====================== Tensorboard Logging ======================= #
             if self.logger:
-                self._logging(self.epoch, avg_loss_train, val_evaluation)
+                self._logging(self.epoch, avg_loss_train, evaluation_metrics)
 
 
 
@@ -241,12 +252,14 @@ if __name__ == "__main__":
     optimizer = optim.SGD(model.parameters(), lr=0.005,
                                 momentum=0.9, weight_decay=0.0005)
 
-     # Set logs folder
-    #logger = Logger('../logs/' + train_name + '/')
+    # Set logs folder
+    log_dir = '../logs/' + train_name + '/'
+    writer = SummaryWriter(log_dir=log_dir)
 
     # Run training
     training = Training(model, device, dataset_train, dataset_val,
-                        optimizer, #logger=logger,
+                        optimizer, 
+                        logger=writer,
                         class_names=cls_names[:2],
                         train_name=train_name)
     training.train(epochs=n_epochs, batch_size=batch_size)
