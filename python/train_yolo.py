@@ -7,6 +7,7 @@ Created on Sat Oct 19 13:04:11 2019
 """
 
 import tqdm
+import argparse
 import torch
 import torch.optim as optim
 import numpy as np
@@ -23,6 +24,7 @@ from test_yolo import evaluate
 from models.yolo import Darknet
 from models.yolo_utils.utils import *
 from utils.datasets import OvaryDataset
+from utils.helper import gettrainname
 
 
 class Training:
@@ -31,7 +33,8 @@ class Training:
     """
 
     def __init__(self, model, device, train_set, valid_set, optim,
-                 class_names, train_name='yolov3', logger=None):
+                 class_names, train_name='yolov3', logger=None,
+                 iou_thres=0.5, conf_thres=0.5, nms_thres=0.5):
         '''
             Training class - Constructor
         '''
@@ -45,9 +48,9 @@ class Training:
         self.logger = logger
         self.class_names = class_names
         self.gradient_accumulations = 2
-        self.iou_thres = 0.5
-        self.conf_thres = 0.5
-        self.nms_thres = 0.5
+        self.iou_thres = iou_thres
+        self.conf_thres = conf_thres
+        self.nms_thres = nms_thres
         self.metrics  = [
             "grid_size",
             "loss",
@@ -188,12 +191,11 @@ class Training:
 
             # ========================= Validation ============================= #
             precision, recall, AP, f1, ap_class = evaluate(self.model,
-                                        data_loader_val,
-                                        self.iou_thres,
-                                        self.conf_thres,
-                                        self.nms_thres,
-                                        1, # batch_size
-                                        self.device)
+                                                        data_loader_val,
+                                                        self.iou_thres,
+                                                        self.conf_thres,
+                                                        self.nms_thres,
+                                                        self.device)
             # Group metrics
             evaluation_metrics = [
                 ("val_precision", precision.mean()),
@@ -235,18 +237,31 @@ class Training:
                 self._logging(self.epoch, loss_train, evaluation_metrics)
 
 
+
 if __name__ == "__main__":
 
-    from utils.helper import gettrainname
+    parser = argparse.ArgumentParser()
+    # Training parameters
+    parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
+    parser.add_argument("--num_epochs", type=int, default=150, help="size of each image batch")
+    parser.add_argument("--model_name", type=str, default="yolov3-tiny_fol", help="name of the model definition, used to load the config. file,")
+    # Evaluation parameters
+    parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
+    parser.add_argument("--conf_thres", type=float, default=0.5, help="object confidence threshold")
+    parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
+
+    opt = parser.parse_args()
+    print(opt)
+
+    # Classes names
+    cls_names = ['background','follicle','ovary']
 
     # Input parameters
-    n_epochs = 150
-    batch_size = 6
-    input_channels = 1
-    network_name = 'yolov3-tiny_fol'#'yolov3_tiny'
+    n_classes = 2
+    n_epochs = opt.num_epochs
+    batch_size = opt.batch_size
+    network_name = opt.model_name
     train_name = gettrainname(network_name)
-
-    cls_names = ['background','follicle','ovary']
     mode_config_path = 'config/'+ network_name +'.cfg'
 
     # Load network model
@@ -285,8 +300,11 @@ if __name__ == "__main__":
     training = Training(model, device, dataset_train, dataset_val,
                         optimizer, 
                         logger=writer,
-                        class_names=cls_names[:2],
-                        train_name=train_name)
+                        class_names=cls_names[:n_classes],
+                        train_name=train_name,
+                        iou_thres=opt.iou_thres, 
+                        conf_thres=opt.conf_thres,
+                        nms_thres=opt.nms_thres)
     training.train(epochs=n_epochs, batch_size=batch_size)
 
     print('')

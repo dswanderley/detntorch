@@ -23,28 +23,37 @@ from matplotlib.ticker import NullLocator
 
 
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--image_folder", type=str, default="data/samples", help="path to dataset")
-    parser.add_argument("--model_def", type=str, default="config/yolov3.cfg", help="path to model definition file")
+    # Network parameters
+    parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
     parser.add_argument("--weights_path", type=str, default="../weights/20200324_2047_Yolo_v3_weights.pth.tar", help="path to weights file")
+    parser.add_argument("--model_name", type=str, default="yolov3.cfg", help="newtork model file")
+    # Evaluation parameters
     parser.add_argument("--conf_thres", type=float, default=0.8, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
-    parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
-    parser.add_argument("--n_cpu", type=int, default=0, help="number of cpu threads to use during batch generation")
-    parser.add_argument("--img_size", type=int, default=512, help="size of each image dimension")
-    parser.add_argument("--checkpoint_model", type=str, help="path to checkpoint model")
+
     opt = parser.parse_args()
     print(opt)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Classes names
+    class_names = ['background','follicle','ovary']
 
-    classes = ['background','follicle']
+    # Input parameters
+    batch_size = opt.batch_size
+    weights_path = opt.weights_path
+    network_name = opt.model_name
+    mode_config_path = 'config/'+ network_name
+
+    # Get data configuration
     path = '../datasets/ovarian/im/test/'
     path_gt = path.replace('/im/', '/gt/')
-
+    
+    # Load device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Initiate model
-    model = Darknet(opt.model_def).to(device)
+    model = Darknet(mode_config_path).to(device)
     if opt.weights_path.endswith(".weights"):
         # Load darknet weights
         model.load_darknet_weights(opt.weights_path)
@@ -64,8 +73,10 @@ if __name__ == "__main__":
                            ovary_inst=False,
                            out_tuple=True)
 
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=False,
-                    collate_fn=dataset.collate_fn_yolo)
+    dataloader = DataLoader(dataset, 
+                        batch_size=opt.batch_size, 
+                        shuffle=False,
+                        collate_fn=dataset.collate_fn_yolo)
 
     Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
@@ -115,7 +126,7 @@ if __name__ == "__main__":
         # Draw bounding boxes and labels of detections
         if detections is not None:
             # Rescale boxes to original image
-            detections = rescale_boxes(detections, opt.img_size, img.shape[:2])
+            detections = rescale_boxes(detections, img.shape[-1], img.shape[:2])
             unique_labels = detections[:, -1].cpu().unique()
             n_cls_preds = len(unique_labels)
             bbox_colors = random.sample(colors, n_cls_preds)
@@ -125,7 +136,7 @@ if __name__ == "__main__":
                                 str(cls_pred.item()), str(conf.item()), str(cls_conf.item()), 
                                 str(x1.item()), str(y1.item()), str(x2.item()), str(y2.item())])
 
-                print("\t+ Label: %s, Conf: %.5f" % (classes[int(cls_pred)], cls_conf.item()))
+                print("\t+ Label: %s, Conf: %.5f" % (class_names[int(cls_pred)], cls_conf.item()))
 
                 # Prepare box to print
                 box_w = x2 - x1
@@ -140,7 +151,7 @@ if __name__ == "__main__":
                 plt.text(
                     x1,
                     y1,
-                    s=classes[int(cls_pred)][0] + str(bb_idx + 1),
+                    s=class_names[int(cls_pred)][0] + str(bb_idx + 1),
                     color="white",
                     verticalalignment="top",
                     bbox={"color": color, "pad": 0},

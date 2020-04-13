@@ -33,12 +33,26 @@ from matplotlib.ticker import NullLocator
 
 if __name__ == "__main__":
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    parser = argparse.ArgumentParser()
+    # Network parameters
+    parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
+    parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
+    parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200411_1938_faster_rcnn_weights.pth.tar", help="path to weights file")
+    # Evaluation parameters
+    parser.add_argument("--conf_thres", type=float, default=0.8, help="object confidence threshold")
+    parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
+    parser.add_argument("--save_img", type=bool, default=False, help="save images with bouding box")
+
+    opt = parser.parse_args()
+    print(opt)
+
+    # Classes names
+    class_names = ['background','follicle','ovary']
 
     # Get data configuration
-    n_classes = 2
-    class_names = ['background','follicle']
-    weights_path  = "../weights/20200411_1938_faster_rcnn_weights.pth.tar"
+    n_classes = opt.num_classes
+    weights_path  = opt.weights_path
     im_path = '../datasets/ovarian/im/test/'
     gt_path = '../datasets/ovarian/gt/test/'
 
@@ -48,13 +62,17 @@ if __name__ == "__main__":
                            clahe=False, transform=False,
                            ovary_inst=False,
                            out_tuple=True)
+
     dataloader = DataLoader(dataset,
-                            batch_size=1,
+                            batch_size=opt.batch_size,
                             shuffle=False,
                             collate_fn=dataset.collate_fn_rcnn)
-                            
+
+    # Load device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     # Initiate model
-    model = FasterRCNN(num_channels=1, num_classes=n_classes, pretrained=True).to(device)
+    model = FasterRCNN(num_channels=opt.num_channels, num_classes=n_classes, pretrained=True).to(device)
     if weights_path is not None:
         # Load state dictionary
         state = torch.load(weights_path)
@@ -80,7 +98,7 @@ if __name__ == "__main__":
         # Get detections
         with torch.no_grad():
             detections = model(images)
-            detections = non_max_suppression(detections) # Removes detections with lower score 
+            detections = non_max_suppression(detections, opt.conf_thres, opt.nms_thres) # Removes detections with lower score 
 
         # Log progress
         current_time = time.time()

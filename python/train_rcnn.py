@@ -7,6 +7,7 @@ Created on Mon Nov 11 22:03:15 2019
 """
 
 import math
+import argparse
 import torch
 import torch.optim as optim
 import numpy as np
@@ -21,8 +22,7 @@ import utils.transformations as tsfrm
 from test_rcnn import evaluate
 from models.rcnn import FasterRCNN
 from utils.datasets import OvaryDataset
-#from utils.logger import Logger
-from utils.helper import reduce_dict
+from utils.helper import reduce_dict, gettrainname
 
 
 class Training:
@@ -31,7 +31,8 @@ class Training:
     """
 
     def __init__(self, model, device, train_set, valid_set, optim, class_names,
-                 train_name='fast_rcnn', logger=None):
+                 train_name='fast_rcnn', logger=None,
+                 iou_thres=0.5, conf_thres=0.5, nms_thres=0.5):
         '''
             Training class - Constructor
         '''
@@ -44,6 +45,9 @@ class Training:
         self.model_name = "_".join(train_name.split('_')[2:])
         self.logger = logger
         self.class_names = class_names
+        self.iou_thres = iou_thres
+        self.conf_thres = conf_thres
+        self.nms_thres = nms_thres
         self.epoch = 0
 
 
@@ -162,9 +166,11 @@ class Training:
 
             # ========================= Validation ============================= #
             precision, recall, AP, f1, ap_class = evaluate(self.model,
-                                            data_loader_val,
-                                            1, #batch_size,
-                                            device=self.device)
+                                                    data_loader_val,
+                                                    self.iou_thres,
+                                                    self.conf_thres,
+                                                    self.nms_thres,
+                                                    device=self.device)
 
             # Group metrics
             evaluation_metrics = [
@@ -209,19 +215,32 @@ class Training:
 
 
 if __name__ == "__main__":
+       
+    parser = argparse.ArgumentParser()
+    # Training parameters
+    parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
+    parser.add_argument("--num_epochs", type=int, default=150, help="number of training epochs")
+    parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
+    parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
+    # Evaluation parameters
+    parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
+    parser.add_argument("--conf_thres", type=float, default=0.5, help="object confidence threshold")
+    parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
 
-    from utils.helper import gettrainname
-
+    opt = parser.parse_args()
+    print(opt)
+    
+    # Classes names
+    cls_names = ['background','follicle','ovary']
+    
     # Input parameters
-    n_classes = 2
-    n_epochs = 150
-    batch_size = 8
-    input_channels = 1
+    n_classes = opt.num_classes
+    n_epochs = opt.num_epochs
+    batch_size = opt.batch_size
+    input_channels = opt.num_channels
     network_name = 'faster_rcnn'
     train_name = gettrainname(network_name)
-
-    cls_names = ['background','follicle','ovary']
-
+    
     # Load CUDA if exist
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -261,7 +280,10 @@ if __name__ == "__main__":
                         optimizer, 
                         logger=writer,
                         class_names=cls_names[:2],
-                        train_name=train_name)
+                        train_name=train_name,
+                        iou_thres=opt.iou_thres, 
+                        conf_thres=opt.conf_thres,
+                        nms_thres=opt.nms_thres)
     training.train(epochs=n_epochs, batch_size=batch_size)
 
     print('')

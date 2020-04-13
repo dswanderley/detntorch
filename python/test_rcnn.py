@@ -106,12 +106,10 @@ def batch_statistics(outputs, targets, iou_threshold):
         batch_metrics.append([true_positives, pred_scores.cpu(), pred_labels.cpu()])
     return batch_metrics
 
-
-def evaluate(model, data_loader, batch_size, device, save_bb=False):
+def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_bb=False):
     """
         Evaluate model
     """
-    iou_thres = 0.5
     # To evaluate on validation set
     model.eval()
     model = model.to(device)
@@ -131,10 +129,10 @@ def evaluate(model, data_loader, batch_size, device, save_bb=False):
         targets = [{ 'boxes':  tgt['boxes'].to(device),'labels': tgt['labels'].to(device) } 
                     for tgt in targets]
 
-        # Run prediction
+        # Run prediction 
         with torch.no_grad():
             outputs = model(images)
-            outputs = non_max_suppression(outputs) # Removes detections with lower score 
+            outputs = non_max_suppression(outputs, conf_thres=conf_thres, nms_thres=nms_thres) # Removes detections with lower score 
 
         sample_metrics += batch_statistics(outputs,
                                 targets,
@@ -172,12 +170,27 @@ if __name__ == "__main__":
     
     from terminaltables import AsciiTable
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    parser = argparse.ArgumentParser()
+    # Network parameters
+    parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
+    parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
+    parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200411_1938_faster_rcnn_weights.pth.tar", help="path to weights file")
+    # Evaluation parameters
+    parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
+    parser.add_argument("--conf_thres", type=float, default=0.001, help="object confidence threshold")
+    parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
+    parser.add_argument("--save_img", type=bool, default=False, help="save images with bouding box")
+
+    opt = parser.parse_args()
+    print(opt)
+    
+    # Classes names
+    class_names = ['background','follicle','ovary']
 
     # Get data configuration
-    n_classes = 2
-    class_names = ['background','follicle']
-    weights_path  = "../weights/20200324_1957_faster_rcnn_weights.pth.tar"#None
+    n_classes = opt.num_classes
+    weights_path  = opt.weights_path
 
     # Dataset
     dataset = OvaryDataset(im_dir='../datasets/ovarian/im/test/',
@@ -186,12 +199,15 @@ if __name__ == "__main__":
                            ovary_inst=False,
                            out_tuple=True)
     data_loader = DataLoader(dataset,
-                            batch_size=4,
+                            batch_size=opt.batch_size,
                             shuffle=False,
                             collate_fn=dataset.collate_fn_rcnn)
-                            
+
+    # Get device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     # Initiate model
-    model = FasterRCNN(num_channels=1, num_classes=n_classes, pretrained=True).to(device)
+    model = FasterRCNN(num_channels=opt.num_channels, num_classes=n_classes, pretrained=True).to(device)
     if weights_path is not None:
         # Load state dictionary
         state = torch.load(weights_path)
@@ -199,10 +215,12 @@ if __name__ == "__main__":
 
     # Eval
     precision, recall, AP, f1, ap_class  = evaluate(model,
-                                data_loader,
-                                4,
-                                device=device,
-                                save_bb=True)
+                                                data_loader,
+                                                opt.iou_thres,
+                                                opt.conf_thres,
+                                                opt.nms_thres,
+                                                device,
+                                                save_bb=opt.save_img)
 
     # Group metrics
     evaluation_metrics = [

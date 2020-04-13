@@ -24,7 +24,7 @@ from models.yolo_utils.utils import *
 from utils.datasets import OvaryDataset, printBoudingBoxes
 
 
-def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, batch_size, device, save_bb=False):
+def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_bb=False):
     """
         Evaluate model
     """
@@ -89,28 +89,31 @@ if __name__ == "__main__":
     from terminaltables import AsciiTable
 
     parser = argparse.ArgumentParser()
+    # Network parameters
     parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
-    parser.add_argument("--model_def", type=str, default="config/yolov3.cfg", help="path to model definition file")
-
     parser.add_argument("--weights_path", type=str, default="../weights/20200324_2047_Yolo_v3_weights.pth.tar", help="path to weights file")
-    parser.add_argument("--n_cpu", type=int, default=1, help="number of cpu threads to use during batch generation")
-    parser.add_argument("--img_size", type=int, default=512, help="size of each image dimension")
-
-    parser.add_argument("--class_path", type=str, default="data/ovarian/classes.names", help="path to class label file")
+    parser.add_argument("--model_name", type=str, default="yolov3.cfg", help="newtork model file")
+    # Evaluation parameters
     parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
     parser.add_argument("--conf_thres", type=float, default=0.001, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
+    parser.add_argument("--save_img", type=bool, default=False, help="save images with bouding box")
 
     opt = parser.parse_args()
     print(opt)
+    
+    # Classes names
+    class_names = ['background','follicle','ovary']
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Input parameters
+    batch_size = opt.batch_size
+    weights_path = opt.weights_path
+    network_name = opt.model_name
+    mode_config_path = 'config/'+ network_name
 
     # Get data configuration
     gt_path = "data/ovarian/gt/"
     im_path = "data/ovarian/im/"
-    classes=2
-    class_names = ['background','follicle']
 
     # Dataset
     dataset = OvaryDataset(im_dir='../datasets/ovarian/im/test/',
@@ -123,8 +126,11 @@ if __name__ == "__main__":
                             shuffle=False,
                             collate_fn=dataset.collate_fn_yolo)
 
+    # Load device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     # Initiate model
-    model = Darknet(opt.model_def).to(device)
+    model = Darknet(mode_config_path).to(device)
     if opt.weights_path.endswith(".weights"):
         # Load darknet weights
         model.load_darknet_weights(opt.weights_path)
@@ -139,12 +145,12 @@ if __name__ == "__main__":
     print("Compute mAP...")
 
     precision, recall, AP, f1, ap_class = evaluate(model,
-                                        data_loader,
-                                        opt.iou_thres,
-                                        opt.conf_thres,
-                                        opt.nms_thres,
-                                        opt.batch_size,
-                                        device)
+                                                data_loader,
+                                                opt.iou_thres,
+                                                opt.conf_thres,
+                                                opt.nms_thres,
+                                                device,
+                                                save_bb=opt.save_img)
     # Group metrics
     evaluation_metrics = [
         ("val_precision", precision.mean()),
