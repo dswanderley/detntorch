@@ -22,7 +22,6 @@ from models.yolo import Darknet
 from models.yolo_utils.utils import *
 
 from utils.datasets import OvaryDataset, printBoudingBoxes
-from utils.logger import Logger
 
 
 def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, batch_size, device, save_bb=False):

@@ -12,6 +12,7 @@ import torch.optim as optim
 import numpy as np
 
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 from torch.autograd import Variable
 from terminaltables import AsciiTable
@@ -22,7 +23,6 @@ from test_yolo import evaluate
 from models.yolo import Darknet
 from models.yolo_utils.utils import *
 from utils.datasets import OvaryDataset
-from utils.logger import Logger
 
 
 class Training:
@@ -41,6 +41,7 @@ class Training:
         self.valid_set = valid_set
         self.optimizer = optim
         self.train_name = train_name
+        self.model_name = "_".join(train_name.split('_')[2:])
         self.logger = logger
         self.class_names = class_names
         self.gradient_accumulations = 2
@@ -125,14 +126,20 @@ class Training:
         info = val_evaluation
         info.append(('train_avg_loss', avg_loss_train))
         for tag, value in info:
-            self.logger.scalar_summary(tag, value, epoch+1)
-
+            self.logger.add_scalar(tag, value, epoch+1)
+        
         # 2. Log values and gradients of the parameters (histogram summary)
-        for tag, value in self.model.named_parameters():
-            tag = tag.replace('.', '/')
-            self.logger.histo_summary(tag, value.data.cpu().numpy(), epoch+1)
-            if not value.grad is None:
-                self.logger.histo_summary(tag +'/grad', value.grad.data.cpu().numpy(), epoch+1)
+        for yolo_tag, value in self.model.named_parameters():
+            # Define tag name
+            tag_parts = yolo_tag.split('.')
+            tag = self.model_name + '/' + tag_parts[-2] + '/' + tag_parts[-1]
+            # Ignore bias from batch normalization
+            if (not 'batch_norm' in tag_parts[-2]) or (not 'bias' in tag_parts[-1]):
+                # add data to histogram
+                self.logger.add_histogram(tag, value.data.cpu().numpy(), epoch+1)
+                # add gradient if exist
+                #if not value.grad is None:
+                #    self.logger.add_histogram(tag +'/grad', value.grad.data.cpu().numpy(), epoch+1)
 
 
     def train(self, epochs=100, batch_size=4):
@@ -236,11 +243,11 @@ if __name__ == "__main__":
     n_epochs = 150
     batch_size = 6
     input_channels = 1
-    network_name = 'Yolo_v3_tiny_fol'#'Yolo_v3_tiny'
+    network_name = 'yolov3-tiny_fol'#'yolov3_tiny'
     train_name = gettrainname(network_name)
 
     cls_names = ['background','follicle','ovary']
-    mode_config_path = 'config/yolov3-tiny_fol.cfg'#'config/yolov3-tiny.cfg'
+    mode_config_path = 'config/'+ network_name +'.cfg'
 
     # Load network model
     model = Darknet(mode_config_path)
@@ -270,13 +277,14 @@ if __name__ == "__main__":
     # Optmization
     optimizer = optim.Adam(model.parameters())
     
-     # Set logs folder
-    logger = Logger('../logs/' + train_name + '/')
+    # Set logs folder
+    log_dir = '../logs/' + train_name + '/'
+    writer = SummaryWriter(log_dir=log_dir)
 
     # Run training
     training = Training(model, device, dataset_train, dataset_val,
                         optimizer, 
-                        logger=logger,
+                        logger=writer,
                         class_names=cls_names[:2],
                         train_name=train_name)
     training.train(epochs=n_epochs, batch_size=batch_size)
