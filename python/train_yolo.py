@@ -19,11 +19,10 @@ from terminaltables import AsciiTable
 import utils.transformations as tsfrm
 
 from test_yolo import evaluate
-#from models.modules import Yolo_net
 from models.yolo import Darknet
 from models.yolo_utils.utils import *
 from utils.datasets import OvaryDataset
-#from utils.logger import Logger
+from utils.logger import Logger
 
 
 class Training:
@@ -124,7 +123,7 @@ class Training:
 
         # 1. Log scalar values (scalar summary)
         info = val_evaluation
-        info.append(('avg_loss_train', avg_loss_train))
+        info.append(('train_avg_loss', avg_loss_train))
         for tag, value in info:
             self.logger.scalar_summary(tag, value, epoch+1)
 
@@ -225,8 +224,8 @@ class Training:
                 })
 
             # ====================== Tensorboard Logging ======================= #
-            #if self.logger:
-            #    self._logging(self.epoch, avg_loss_train, val_evaluation)
+            if self.logger:
+                self._logging(self.epoch, loss_train, evaluation_metrics)
 
 
 if __name__ == "__main__":
@@ -270,16 +269,14 @@ if __name__ == "__main__":
 
     # Optmization
     optimizer = optim.Adam(model.parameters())
-    #optimizer = optim.SGD(model.parameters(), lr=0.005,
-    #                            momentum=0.9, weight_decay=0.0005)
     
      # Set logs folder
-    #logger = Logger('../logs/' + train_name + '/')
+    logger = Logger('../logs/' + train_name + '/')
 
     # Run training
     training = Training(model, device, dataset_train, dataset_val,
                         optimizer, 
-                        #logger=logger,
+                        logger=logger,
                         class_names=cls_names[:2],
                         train_name=train_name)
     training.train(epochs=n_epochs, batch_size=batch_size)

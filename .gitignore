@@ -6,3 +6,4 @@ python/.vscode/
 predictions/faster_rcnn/
 predictions/yolo/
 *.csv
+logs/*/events.out.tfevents.*

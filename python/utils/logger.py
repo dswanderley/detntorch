@@ -9,7 +9,8 @@ except ImportError:
     from io import BytesIO         # Python 3.x
 import warnings
 warnings.simplefilter("ignore", FutureWarning)
-
+tf.compat.v1.disable_eager_execution()
+tf.estimator.ProfilerHook(10)
 
 class Logger(object):
 
