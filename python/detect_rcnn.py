@@ -24,6 +24,7 @@ from torch.autograd import Variable
 from models.rcnn import FasterRCNN
 from models.yolo_utils.utils import *
 from utils.datasets import *
+from test_rcnn import non_max_suppression, batch_statistics
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -37,7 +38,7 @@ if __name__ == "__main__":
     # Get data configuration
     n_classes = 2
     class_names = ['background','follicle']
-    weights_path  = "../weights/20200324_2019_faster_rcnn_weights.pth.tar"
+    weights_path  = "../weights/20200411_1938_faster_rcnn_weights.pth.tar"
     im_path = '../datasets/ovarian/im/test/'
     gt_path = '../datasets/ovarian/gt/test/'
 
@@ -79,7 +80,7 @@ if __name__ == "__main__":
         # Get detections
         with torch.no_grad():
             detections = model(images)
-            #detections = non_max_suppression(detections, opt.conf_thres, opt.nms_thres)
+            detections = non_max_suppression(detections) # Removes detections with lower score 
 
         # Log progress
         current_time = time.time()
@@ -149,7 +150,7 @@ if __name__ == "__main__":
         plt.axis("off")
         plt.gca().xaxis.set_major_locator(NullLocator())
         plt.gca().yaxis.set_major_locator(NullLocator())
-        plt.savefig(f"../predictions/faster_rcnn/{fname}.png", bbox_inches="tight", pad_inches=0.0)
+        plt.savefig(f"../predictions/faster_rcnn/{fname}", bbox_inches="tight", pad_inches=0.0)
         plt.close()
 
     # Save results on a ;csv
