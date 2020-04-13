@@ -181,6 +181,11 @@ class Training:
                 'state_dict': self.model.state_dict(),
                 'best_loss_train': best_loss,
                 'best_ap_val': best_ap,
+                'val_precision': precision.mean(),
+                'val_recall': recall.mean(),
+                'val_mAP': AP.mean(),
+                'val_f1': f1.mean(),
+                'batch_size': batch_size,
                 'optimizer': str(self.optimizer),
                 'optimizer_dict': self.optimizer.state_dict(),
                 'device': str(self.device)
