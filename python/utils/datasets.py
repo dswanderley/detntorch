@@ -30,7 +30,7 @@ class OvaryDataset(Dataset):
 
     def __init__(self, im_dir='im', gt_dir='gt',
             one_hot=True, clahe=False,
-            ovary_inst=False, transform=None, out_tuple=False):
+            ovary_inst=False, transform=None, out_tuple=True):
         """
         Args:
             im_dir (string): Directory with all the images.
