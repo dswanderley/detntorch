@@ -8,22 +8,38 @@ Created on Sat Apr 18 16:02:15 2020
 
 import os
 import csv
+import random
+
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+
+from PIL import Image
 from torch.utils.data import DataLoader
 from utils.datasets import OvaryDataset
+from matplotlib.ticker import NullLocator
 
-
-dataset_path = '../datasets/ovarian/'
+# Dataset data
+dataset_path = '../datasets/ovarian'
 dataset_names = ['train', 'validation', 'test']
 dataset_folder = ['train', 'val', 'test']
+class_names = ['background','follicle','ovary']
 
+# output table
 table_header = ['dataset', 'filename', 'class', 
                 'x1', 'y1', 'x2', 'y2',
                 'xc', 'yc', 'w', 'h' ]
 data_table = [table_header]
 
+# Bounding-box colors
+cmap = plt.get_cmap("tab20b")
+colormap = [cmap(i) for i in np.linspace(0, 1, 20)]
+colors = random.sample(colormap, len(dataset_names))
+
+# Read datasets
 for dname, fname in zip(dataset_names, dataset_folder):
     # Set paths
-    path_im = dataset_path + '/im/' + fname
+    path_im = dataset_path + '/im/' + fname + '/'
     path_gt = path_im.replace('/im/', '/gt/')
     # pre-set dataset
     dataset = OvaryDataset(im_dir=path_im,gt_dir=path_gt,
@@ -33,9 +49,17 @@ for dname, fname in zip(dataset_names, dataset_folder):
                             collate_fn=dataset.collate_fn_rcnn)
     # Iterate dataset
     for batch_idx, (names, imgs, targets) in enumerate(data_loader):
+        # Iterate inside batch
         for i in range(len(names)):
             filename = names[i]
-            for box, lbl in zip(targets[i]['boxes'], targets[i]['labels']):
+            full_path = os.path.join(path_im, filename)
+            # Create plot
+            img = np.array(Image.open(full_path))
+            plt.figure()
+            fig, ax = plt.subplots(1)
+            ax.imshow(img)
+            # Iterate bouding boxes
+            for idx, (box, lbl) in enumerate(zip(targets[i]['boxes'], targets[i]['labels'])):
                 label = lbl.item()
                 x1 = box[0].item()
                 y1 = box[1].item()
@@ -51,6 +75,29 @@ for dname, fname in zip(dataset_names, dataset_folder):
                                   x1, y1, x2, y2,
                                   xc, yc, w, h
                                 ])
+                # Plot bouding box
+                color = colors[label]
+                # Create a Rectangle patch
+                bbox = patches.Rectangle((x1, y1), w, h, linewidth=2, edgecolor=color, facecolor="none")
+                # Add the bbox to the plot
+                ax.add_patch(bbox)
+                # Add label
+                plt.text(
+                    x1,
+                    y1,
+                    s=str(idx+1),
+                    color=color,
+                    verticalalignment="top",
+                    bbox={"color":"white", "alpha":.1, "pad": 0},
+                )
+
+        # Save generated image with detections
+        path_bb = path_im.replace('/im/', '/bb/')
+        plt.axis("off")
+        plt.gca().xaxis.set_major_locator(NullLocator())
+        plt.gca().yaxis.set_major_locator(NullLocator())
+        plt.savefig(path_bb + filename, bbox_inches="tight", pad_inches=0.0)
+        plt.close()
 
 # Save data on a csv
 with open( dataset_path + "data.csv", 'w', newline='') as fp:
