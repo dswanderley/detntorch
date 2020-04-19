@@ -236,6 +236,8 @@ class Training:
             if self.logger:
                 self._logging(self.epoch, loss_train, evaluation_metrics)
 
+            print('Model {:s} updated!'.format(self.train_name))
+            print('\n')
 
 
 if __name__ == "__main__":

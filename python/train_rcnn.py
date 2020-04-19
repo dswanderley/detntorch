@@ -163,6 +163,7 @@ class Training:
             # ========================= Training =============================== #
             avg_loss_train = self._iterate_train(data_loader_train)
             print('Training loss:  {:f}'.format(avg_loss_train))
+            
 
             # ========================= Validation ============================= #
             precision, recall, AP, f1, ap_class = evaluate(self.model,
@@ -212,6 +213,8 @@ class Training:
             if self.logger:
                 self._logging(self.epoch, avg_loss_train, evaluation_metrics)
 
+            print('Model {:s} updated!'.format(self.train_name))
+            print('\n')
 
 
 if __name__ == "__main__":
