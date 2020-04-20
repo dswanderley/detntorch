@@ -70,7 +70,7 @@ class Training:
         self.epoch = 0
 
 
-    def _saveweights(self, state):
+    def _saveweights(self, state, log=None):
         '''
             Save network weights.
             Arguments:
@@ -79,6 +79,13 @@ class Training:
         path = '../weights/'
         filename = path + self.train_name + '_weights.pth.tar'
         torch.save(state, filename)
+        # Save Log table
+        if type(log) == str:
+            logname = filename.replace('.pth.tar','.log')
+            logname = logname.replace('_weights','_train')
+            log_file = open(logname, "w")
+            log_file.write(log)
+            log_file.close()
 
 
     def _iterate_train(self, data_loader):
@@ -218,19 +225,21 @@ class Training:
                 best_ap = AP.mean()
                 # save
                 self._saveweights({
-                'epoch': self.epoch + 1,
-                'state_dict': self.model.state_dict(),
-                'best_loss_train': best_loss,
-                'best_ap_val': best_ap,
-                'val_precision': precision.mean(),
-                'val_recall': recall.mean(),
-                'val_mAP': AP.mean(),
-                'val_f1': f1.mean(),
-                'batch_size': batch_size,
-                'optimizer': str(self.optimizer),
-                'optimizer_dict': self.optimizer.state_dict(),
-                'device': str(self.device)
-                })
+                        'epoch': self.epoch + 1,
+                        'state_dict': self.model.state_dict(),
+                        'best_loss_train': best_loss,
+                        'best_ap_val': best_ap,
+                        'val_precision': precision.mean(),
+                        'val_recall': recall.mean(),
+                        'val_mAP': AP.mean(),
+                        'val_f1': f1.mean(),
+                        'batch_size': batch_size,
+                        'optimizer': str(self.optimizer),
+                        'optimizer_dict': self.optimizer.state_dict(),
+                        'device': str(self.device),
+                        'avg_metrics': self.avg_metrics
+                    }, 
+                    log=log_str )
 
             # ====================== Tensorboard Logging ======================= #
             if self.logger:
@@ -293,7 +302,7 @@ if __name__ == "__main__":
 
     # Optmization
     optimizer = optim.Adam(model.parameters())
-    
+
     # Set logs folder
     log_dir = '../logs/' + train_name + '/'
     writer = SummaryWriter(log_dir=log_dir)
