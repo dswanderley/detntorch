@@ -17,30 +17,48 @@ import argparse
 
 def read_state_dict(state):
 
-    header = [  'epoch', 
+    header = [  'epoch',
+                'batch_size',
+                'optimizer',
                 'best_loss_train',
                 'best_ap_val',
-                'optimizer',
+                'val_precision',
+                'val_recall',
+                'val_mAP',
+                'val_f1',
                 'device'  ]
-    row  = [ '', '', '', '', '' ]
+    row  = [ '', '', '', '', '','', '', '', '', '' ]
 
     # Read state dict
     for key, value in state.items():
         # Epoch of saving
         if key == 'epoch':
             row[0] = value
-        # Train loss score these weights
-        if key == 'best_loss_train':
+        if key == 'batch_size':
             row[1] = value
-        # Validation score for these weights
-        if key == 'best_ap_val':
-            row[2] = value
         # Optimizer used
         if key == 'optimizer':
-            row[3] = value.split(" ")[0]
+            row[2] = value.split(" ")[0]
+        # Train loss score these weights
+        if key == 'best_loss_train':
+            row[3] = value
+        # Validation score for these weights
+        if key == 'best_ap_val':
+            row[4] = value
+        if key == 'val_precision':
+            row[5] = value
+        # Validation score for these weights
+        if key == 'val_recall':
+            row[6] = value
+        # Validation score for these weights
+        if key == 'val_mAP':
+            row[7] = value
+        # Validation score for these weights
+        if key == 'val_f1':
+            row[8] = value
         # Device used during training
         if key == 'device':
-            row[4] = value
+            row[9] = value
 
     return header, row
 
