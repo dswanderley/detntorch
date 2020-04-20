@@ -27,8 +27,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Network parameters
     parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
-    parser.add_argument("--weights_path", type=str, default="../weights/20200324_2047_Yolo_v3_weights.pth.tar", help="path to weights file")
-    parser.add_argument("--model_name", type=str, default="yolov3.cfg", help="newtork model file")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200419_1419_yolov3_weights.pth.tar", help="path to weights file")
+    parser.add_argument("--model_name", type=str, default="yolov3", help="newtork model file")
     # Evaluation parameters
     parser.add_argument("--conf_thres", type=float, default=0.8, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
@@ -42,8 +42,12 @@ if __name__ == "__main__":
     # Input parameters
     batch_size = opt.batch_size
     weights_path = opt.weights_path
-    network_name = opt.model_name
-    mode_config_path = 'config/'+ network_name
+    mode_config_path = 'config/'+ opt.model_name + '.cfg'
+    # Get network name
+    networkname = weights_path.split('/')[-1]
+    networkname = networkname.split('.')[0]
+    if ('_weights' in networkname):
+        networkname = networkname.replace('_weights', '')
 
     # Get data configuration
     path = '../datasets/ovarian/im/test/'
@@ -110,7 +114,12 @@ if __name__ == "__main__":
     cmap = plt.get_cmap("tab20b")
     colors = [cmap(i) for i in np.linspace(0, 1, 20)]
 
+    # Save images stage
     print("\nSaving images:")
+    outfolder = "../predictions/yolo/" + networkname + '/'
+    if not os.path.exists(outfolder):
+        os.makedirs(outfolder)
+
     # Iterate through images and save plot of detections
     for img_i, (fname, detections) in enumerate(zip(imgs, img_detections)):
 
@@ -118,7 +127,9 @@ if __name__ == "__main__":
         print("(%d) Image: '%s'" % (img_i, full_path))
 
         # Create plot
-        img = np.array(Image.open(full_path))
+        img = np.array(Image.open(full_path).convert('LA'))
+        if len(img.shape) == 3:
+            img = img[:,:,0]
         plt.figure()
         fig, ax = plt.subplots(1)
         ax.imshow(img)
@@ -133,7 +144,7 @@ if __name__ == "__main__":
             for bb_idx, (x1, y1, x2, y2, conf, cls_conf, cls_pred) in enumerate(detections):
                 # Add data to table
                 table.append([fname, str(img_i + 1), str(bb_idx + 1), 
-                                str(cls_pred.item()), str(conf.item()), str(cls_conf.item()), 
+                                class_names[int(cls_pred.item())], str(cls_conf.item()), 
                                 str(x1.item()), str(y1.item()), str(x2.item()), str(y2.item())])
 
                 print("\t+ Label: %s, Conf: %.5f" % (class_names[int(cls_pred)], cls_conf.item()))
@@ -152,19 +163,19 @@ if __name__ == "__main__":
                     x1,
                     y1,
                     s=class_names[int(cls_pred)][0] + str(bb_idx + 1),
-                    color="white",
+                    color=color,
                     verticalalignment="top",
-                    bbox={"color": color, "pad": 0},
+                    bbox={"color":"white", "alpha":.1, "pad": 0}
                 )
 
         # Save generated image with detections
         plt.axis("off")
         plt.gca().xaxis.set_major_locator(NullLocator())
         plt.gca().yaxis.set_major_locator(NullLocator())
-        plt.savefig(f"../predictions/yolo/{fname}.png", bbox_inches="tight", pad_inches=0.0)
+        plt.savefig(outfolder + fname, bbox_inches="tight", pad_inches=0.0)
         plt.close()
 
     # Save results on a ;csv
-    with open(f"../predictions/yolo/results.csv", 'w', newline='') as fp:
+    with open(outfolder + "results.csv", 'w', newline='') as fp:
         writer = csv.writer(fp, delimiter=';')
         writer.writerows(table)

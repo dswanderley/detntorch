@@ -38,7 +38,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
     parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
-    parser.add_argument("--weights_path", type=str, default="../weights/20200411_1938_faster_rcnn_weights.pth.tar", help="path to weights file")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200419_1604_faster_rcnn_weights.pth.tar", help="path to weights file")
     # Evaluation parameters
     parser.add_argument("--conf_thres", type=float, default=0.8, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
@@ -55,6 +55,11 @@ if __name__ == "__main__":
     weights_path  = opt.weights_path
     im_path = '../datasets/ovarian/im/test/'
     gt_path = '../datasets/ovarian/gt/test/'
+    # Get network name
+    networkname = weights_path.split('/')[-1]
+    networkname = networkname.split('.')[0]
+    if ('_weights' in networkname):
+        networkname = networkname.replace('_weights', '')
 
     # Dataset
     dataset = OvaryDataset(im_dir=im_path,
@@ -114,7 +119,12 @@ if __name__ == "__main__":
     cmap = plt.get_cmap("tab20b")
     colors = [cmap(i) for i in np.linspace(0, 1, 20)]
 
+    # Save images stage
     print("\nSaving images:")
+    outfolder = "../predictions/faster_rcnn/" + networkname + '/'
+    if not os.path.exists(outfolder):
+        os.makedirs(outfolder)
+
     # Iterate through images and save plot of detections
     for img_i, (fname, detections) in enumerate(zip(img_names, img_detections)):
 
@@ -122,7 +132,9 @@ if __name__ == "__main__":
         print("(%d) Image: '%s'" % (img_i, full_path))
 
         # Create plot
-        img = np.array(Image.open(full_path))
+        img = np.array(Image.open(full_path).convert('LA'))
+        if len(img.shape) == 3:
+            img = img[:,:,0]
         plt.figure()
         fig, ax = plt.subplots(1)
         ax.imshow(img)
@@ -140,7 +152,7 @@ if __name__ == "__main__":
                     cls_pred = detections['labels'][idx].cpu()
                     # Add data to table
                     table.append([fname, str(img_i + 1), str(idx + 1), 
-                                str(cls_pred.item()), str(cls_conf.item()), 
+                                class_names[int(cls_pred.item())], str(cls_conf.item()), 
                                 str(x1.item()), str(y1.item()), str(x2.item()), str(y2.item())])
 
                     print("\t+ Label: %s, Conf: %.5f" % (class_names[int(cls_pred)], cls_conf.item()))
@@ -158,20 +170,20 @@ if __name__ == "__main__":
                     plt.text(
                         x1,
                         y1,
-                        s=class_names[int(cls_pred)],
-                        color="white",
+                        s=class_names[int(cls_pred)][0]+str(idx+1),
+                        color=color,
                         verticalalignment="top",
-                        bbox={"color": color, "pad": 0},
+                        bbox={"color":"white", "alpha":.1, "pad": 0}
                     )
 
         # Save generated image with detections
         plt.axis("off")
         plt.gca().xaxis.set_major_locator(NullLocator())
         plt.gca().yaxis.set_major_locator(NullLocator())
-        plt.savefig(f"../predictions/faster_rcnn/{fname}", bbox_inches="tight", pad_inches=0.0)
+        plt.savefig(outfolder + fname, bbox_inches="tight", pad_inches=0.0)
         plt.close()
 
     # Save results on a ;csv
-    with open(f"../predictions/faster_rcnn/results.csv", 'w', newline='') as fp:
+    with open(outfolder + "results.csv", 'w', newline='') as fp:
         writer = csv.writer(fp, delimiter=';')
         writer.writerows(table)
