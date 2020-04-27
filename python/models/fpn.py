@@ -40,12 +40,12 @@ class ResNetBackbone(nn.Module):
     '''
     ResNet backbone for Feature Pyramid Net.
     '''
-    def __init__(self, num_channels=3, backbone='resnet50'):
+    def __init__(self, num_channels=3, backbone='resnet50', pretrained=True):
         super(ResNetBackbone, self).__init__()
         # set parameters
         self.num_channels = num_channels
         # load backbone
-        self.backbone, self.shortcut_features, self.bb_out_name = get_backbone(backbone, pretrained=True)
+        self.backbone, self.shortcut_features, self.bb_out_name = get_backbone(backbone, pretrained=pretrained)
         # input conv
         self.conv1 = self.backbone.conv1
         if num_channels != 3:
@@ -116,14 +116,14 @@ class PyramidFeatures(nn.Module):
     '''
     Features Pyramid Network
     '''
-    def __init__(self, num_channels=3, num_features=256, backbone='resnet50'):
+    def __init__(self, num_channels=3, num_features=256, backbone='resnet50', pretrained=True):
         super(PyramidFeatures, self).__init__()
         # parametes
         self.num_channels = num_channels
         self.num_features = num_features
         self.backbone_name = backbone
         # Bottom-up pathway
-        self.backbone = ResNetBackbone(num_channels, backbone='resnet50')
+        self.backbone = ResNetBackbone(num_channels, backbone='resnet50', pretrained=True)
         # Top-down pathway
         self.uplayer1 = UpsampleLike(self.backbone.fpn_sizes[2], num_features)
         self.uplayer2 = UpsampleLike(self.backbone.fpn_sizes[1], num_features)
