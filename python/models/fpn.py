@@ -40,33 +40,36 @@ class ResNetBackbone(nn.Module):
     '''
     ResNet backbone for Feature Pyramid Net.
     '''
-    def __init__(self, in_channels=3, backbone='resnet50', pretrained=True):
+    def __init__(self, in_channels=3, backbone_model='resnet50', pretrained=True):
         super(ResNetBackbone, self).__init__()
         # set parameters
         self.in_channels = in_channels
-        # load backbone
-        self.backbone, self.shortcut_features, self.bb_out_name = get_backbone(backbone, pretrained=pretrained)
-        # input conv
-        self.conv1 = self.backbone.conv1
+        # adjust channels
         if in_channels != 3:
-            self.conv1.in_channels = in_channels
-        self.conv1.load_state_dict(self.backbone.conv1.state_dict())
-        self.bn1 = self.backbone.bn1
-        self.bn1.load_state_dict(self.backbone.bn1.state_dict())
-        self.relu = self.backbone.relu
-        self.maxpool = self.backbone.maxpool
+            self.conv0 = nn.Conv2d(in_channels, 3, 1, stride=1, padding=0)
+            self.bn0 = nn.BatchNorm2d(3)
+        self.relu = nn.ReLU(inplace=True)
+        # load backbone
+        backbone, shortcut_features, bb_out_name = get_backbone(backbone_model, pretrained=pretrained)
+        # backbone input conv
+        self.conv1 = backbone.conv1
+        self.conv1.load_state_dict(backbone.conv1.state_dict())
+        self.bn1 = backbone.bn1
+        self.bn1.load_state_dict(backbone.bn1.state_dict())
+        #self.relu = self.backbone.relu
+        self.maxpool = backbone.maxpool
         # Sequence 1
-        self.layer1 = self.backbone.layer1
-        self.layer1.load_state_dict(self.backbone.layer1.state_dict())
+        self.layer1 = backbone.layer1
+        self.layer1.load_state_dict(backbone.layer1.state_dict())
         # Sequence 2
-        self.layer2 = self.backbone.layer2
-        self.layer2.load_state_dict(self.backbone.layer2.state_dict())
+        self.layer2 = backbone.layer2
+        self.layer2.load_state_dict(backbone.layer2.state_dict())
         # Sequence 3
-        self.layer3 = self.backbone.layer3
-        self.layer3.load_state_dict(self.backbone.layer3.state_dict())
+        self.layer3 = backbone.layer3
+        self.layer3.load_state_dict(backbone.layer3.state_dict())
         # Sequence 4
-        self.layer4 = self.backbone.layer4
-        self.layer4.load_state_dict(self.backbone.layer4.state_dict())
+        self.layer4 = backbone.layer4
+        self.layer4.load_state_dict(backbone.layer4.state_dict())
         # Output features
         self.fpn_sizes = [self.layer2[- 1].conv3.out_channels,
                           self.layer3[- 1].conv3.out_channels,
@@ -74,7 +77,12 @@ class ResNetBackbone(nn.Module):
         #print(self.layer4._get_name())
 
     def forward(self, x):
-        # input conv
+        # adjust input channels
+        if self.in_channels != 3:
+            x = self.conv0(x)
+            x = self.bn0(x)
+            x = self.relu(x)
+        # backbone input conv
         x0 = self.conv1(x)
         x0 = self.bn1(x0)
         x0 = self.relu(x0)
@@ -116,14 +124,14 @@ class PyramidFeatures(nn.Module):
     '''
     Features Pyramid Network
     '''
-    def __init__(self, in_channels=3, num_features=256, backbone='resnet50', pretrained=True):
+    def __init__(self, in_channels=3, num_features=256, backbone_name='resnet50', pretrained=True):
         super(PyramidFeatures, self).__init__()
         # parametes
         self.in_channels = in_channels
         self.num_features = num_features
-        self.backbone_name = backbone
+        self.backbone_name = backbone_name
         # Bottom-up pathway
-        self.backbone = ResNetBackbone(in_channels, backbone='resnet50', pretrained=True)
+        self.backbone = ResNetBackbone(in_channels=in_channels, backbone_model=backbone_name, pretrained=True)
         # Top-down pathway
         self.uplayer1 = UpsampleLike(self.backbone.fpn_sizes[2], num_features)
         self.uplayer2 = UpsampleLike(self.backbone.fpn_sizes[1], num_features)
@@ -151,8 +159,8 @@ class PyramidFeatures(nn.Module):
 if __name__ == "__main__":
     from torch.autograd import Variable
 
-    net = PyramidFeatures()
-    preds = net( Variable( torch.randn(2,3,512,512) ) )
+    net = PyramidFeatures(in_channels=1)
+    preds = net( Variable( torch.randn(2,1,512,512) ) )
 
     for p in preds:
         print(p.shape)
