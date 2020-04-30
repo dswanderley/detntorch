@@ -87,7 +87,7 @@ if __name__ == "__main__":
     imgs = []  # Stores image paths
     img_detections = []  # Stores detections for each image index
     table = [] # Table of content
-    table.append(['fname', 'img_idx', 'bb_idx', 'cls_pred', 'conf', 'cls_conf', 'x1', 'y1', 'x2', 'y2'])
+    table.append(['fname', 'img_idx', 'bb_idx', 'cls_pred', 'cls_conf', 'conf', 'x1', 'y1', 'x2', 'y2'])
 
     print("\nPerforming object detection:")
     prev_time = time.time()
@@ -144,7 +144,7 @@ if __name__ == "__main__":
             for bb_idx, (x1, y1, x2, y2, conf, cls_conf, cls_pred) in enumerate(detections):
                 # Add data to table
                 table.append([fname, str(img_i + 1), str(bb_idx + 1), 
-                                class_names[int(cls_pred.item())], str(cls_conf.item()), 
+                                class_names[int(cls_pred.item())], str(cls_conf.item()), str(conf.item()),
                                 str(x1.item()), str(y1.item()), str(x2.item()), str(y2.item())])
 
                 print("\t+ Label: %s, Conf: %.5f" % (class_names[int(cls_pred)], cls_conf.item()))
@@ -175,7 +175,7 @@ if __name__ == "__main__":
         plt.savefig(outfolder + fname, bbox_inches="tight", pad_inches=0.0)
         plt.close()
 
-    # Save results on a ;csv
+    # Save results on a csv
     with open(outfolder + "results.csv", 'w', newline='') as fp:
         writer = csv.writer(fp, delimiter=';')
         writer.writerows(table)

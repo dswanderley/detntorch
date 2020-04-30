@@ -146,16 +146,16 @@ if __name__ == "__main__":
             bbox_colors = random.sample(colors, n_cls_preds)
             for idx, (x1, y1, x2, y2) in enumerate(detections['boxes'].cpu()):
 
-                cls_conf = detections['scores'][idx].cpu()
+                score = detections['scores'][idx].cpu()
 
-                if cls_conf > 0.:
+                if score > 0.:
                     cls_pred = detections['labels'][idx].cpu()
                     # Add data to table
                     table.append([fname, str(img_i + 1), str(idx + 1), 
-                                class_names[int(cls_pred.item())], str(cls_conf.item()), 
+                                class_names[int(cls_pred.item())], str(score.item()), 
                                 str(x1.item()), str(y1.item()), str(x2.item()), str(y2.item())])
 
-                    print("\t+ Label: %s, Conf: %.5f" % (class_names[int(cls_pred)], cls_conf.item()))
+                    print("\t+ Label: %s, Score: %.5f" % (class_names[int(cls_pred)], score.item()))
 
                     # Prepare box to print
                     box_w = x2 - x1
@@ -183,7 +183,7 @@ if __name__ == "__main__":
         plt.savefig(outfolder + fname, bbox_inches="tight", pad_inches=0.0)
         plt.close()
 
-    # Save results on a ;csv
+    # Save results on a csv
     with open(outfolder + "results.csv", 'w', newline='') as fp:
         writer = csv.writer(fp, delimiter=';')
         writer.writerows(table)
