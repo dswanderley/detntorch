@@ -15,15 +15,59 @@ except:
     from fpn import PyramidFeatures
 
 
+class ClassificationModel(nn.Module):
+    '''
+    Classification network: a subnetwork responsible for performing
+        object classification using the backbone’s output.
+    '''
+    def __init__(self, in_features, num_features=256, num_classes=2, num_anchors=9):
+        super(ClassificationModel, self).__init__()
+        # Parameters
+        self.num_classes = num_classes
+        self.in_features = in_features
+        self.num_features = num_features
+        self.num_anchors = num_anchors
+        # Define model blocks
+        self.conv1 = nn.Conv2d(in_features,  num_features, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(num_features, num_features, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(num_features, num_features, kernel_size=3, padding=1)
+        self.conv4 = nn.Conv2d(num_features, num_features, kernel_size=3, padding=1)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv5 = nn.Conv2d(feature_size, num_anchors * num_classes, kernel_size=3, padding=1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self,x):
+        # Classification subnet
+        out = self.conv1(x)
+        out = self.relu(out)
+        out = self.conv2(out)
+        out = self.relu(out)
+        out = self.conv3(out)
+        out = self.relu(out)
+        out = self.conv4(out)
+        out = self.relu(out)
+        # out is B x C x W x H, with C = n_classes + n_anchors
+        out = out.permute(0, 2, 3, 1)
+        batch_size, width, height, channels = out.shape
+
+        out = out.view(batch_size, width, height, self.num_anchors, self.num_classes)
+        out = out.contiguous().view(x.shape[0], -1, self.num_classes)
+
+        return out
+
 
 class RegressionModel(nn.Module):
     '''
-    RegressionModel net: a subnetwork responsible for performing
+    Regression network: a subnetwork responsible for performing
         bounding box regression using the backbone’s output.
     '''
-    def __init__(self, in_features, num_features=255, num_anchors=9):
+    def __init__(self, in_features, num_features=256, num_anchors=9):
         super(RegressionModel, self).__init__()
-
+        # Parameters
+        self.in_features = in_features
+        self.num_features = num_features
+        self.num_anchors = num_anchors
+        # Define model blocks
         self.conv1 = nn.Conv2d(in_features,  num_features, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(num_features, num_features, kernel_size=3, padding=1)
         self.conv3 = nn.Conv2d(num_features, num_features, kernel_size=3, padding=1)
