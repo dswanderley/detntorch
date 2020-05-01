@@ -117,7 +117,7 @@ class RetinaNet(nn.Module):
                                                   num_classes=num_classes)
         self.regression = RegressionModel(in_features=num_features,
                                             num_features=num_features,
-                                            num_anchors=9)
+                                            num_anchors=num_anchors)
 
     def forward(self, x):
         cls_preds = []
