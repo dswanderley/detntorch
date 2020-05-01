@@ -46,11 +46,14 @@ class ClassificationModel(nn.Module):
         out = self.relu(out)
         out = self.conv4(out)
         out = self.relu(out)
-        # out is B x C x W x H, with C = n_classes + n_anchors
+        # Output conv
+        out = self.conv5(out) # out is B x C x W x H, with C = n_classes * n_anchors
+        # Permute to put W and H in the middle
         out = out.permute(0, 2, 3, 1)
         batch_size, width, height, channels = out.shape
-
+        # Split anchors and classes from channels
         out = out.view(batch_size, width, height, self.num_anchors, self.num_classes)
+        # Strip all elements in a single dimension, excepet batch anc classes (one-hot-encoded)
         out = out.contiguous().view(x.shape[0], -1, self.num_classes)
 
         return out
@@ -86,11 +89,13 @@ class RegressionModel(nn.Module):
         out = self.conv4(out)
         out = self.relu(out)
         # Output conv
-        out = self.conv5(out)
-        # out is B x C x W x H, with C = 4*num_anchors
+        out = self.conv5(out) # out is B x C x W x H, with C = 4*num_anchors
+        # Permute to put W and H in the middle
         out = out.permute(0, 2, 3, 1)
+        # Strip H, W and anchors in a single dimension
+        out = out.contiguous().view(out.shape[0], -1, 4)
 
-        return out.contiguous().view(out.shape[0], -1, 4)
+        return out
 
 
 class RetinaNet(nn.Module):
@@ -116,9 +121,23 @@ class RetinaNet(nn.Module):
 
 
     def forward(self, x):
-        y = self.fpn(x)
+        cls_preds = []
+        box_preds = []
 
-        return y
+        # Get Pyramid features
+        features = self.fpn(x)
+
+        # Run subnets for each feature
+        for feat in features:
+            cpred = self.classification(feat)
+            cls_preds.append(cpred)
+            bpred = self.regression(feat)
+            box_preds.append(bpred)
+
+        classes = torch.cat(cls_preds, dim=1)
+        boxes = torch.cat(box_preds, dim=1)
+
+        return classes, boxes
 
 
 
@@ -126,10 +145,10 @@ if __name__ == "__main__":
     from torch.autograd import Variable
 
     net = RetinaNet(in_channels=1)
-    features = net( Variable( torch.randn(2,1,512,512) ) )
+    out = net( Variable( torch.randn(2,1,512,512) ) )
 
-    for feat in features:
-        print(feat.shape)
+    for data in out:
+        print(data.shape)
 
 
     print('')
