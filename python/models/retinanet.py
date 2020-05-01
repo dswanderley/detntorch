@@ -119,7 +119,6 @@ class RetinaNet(nn.Module):
                                             num_features=num_features,
                                             num_anchors=9)
 
-
     def forward(self, x):
         cls_preds = []
         box_preds = []
@@ -133,11 +132,17 @@ class RetinaNet(nn.Module):
             cls_preds.append(cpred)
             bpred = self.regression(feat)
             box_preds.append(bpred)
-
+        # Convert to tensor
         classes = torch.cat(cls_preds, dim=1)
         boxes = torch.cat(box_preds, dim=1)
 
         return classes, boxes
+
+    def freeze_bn(self):
+        '''Freeze BatchNorm layers.'''
+        for layer in self.modules():
+            if isinstance(layer, nn.BatchNorm2d):
+                layer.eval()
 
 
 
