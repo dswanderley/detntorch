@@ -33,7 +33,7 @@ class ClassificationModel(nn.Module):
         self.conv3 = nn.Conv2d(num_features, num_features, kernel_size=3, padding=1)
         self.conv4 = nn.Conv2d(num_features, num_features, kernel_size=3, padding=1)
         self.relu = nn.ReLU(inplace=True)
-        self.conv5 = nn.Conv2d(feature_size, num_anchors * num_classes, kernel_size=3, padding=1)
+        self.conv5 = nn.Conv2d(num_features, num_anchors * num_classes, kernel_size=3, padding=1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self,x):
@@ -73,7 +73,7 @@ class RegressionModel(nn.Module):
         self.conv3 = nn.Conv2d(num_features, num_features, kernel_size=3, padding=1)
         self.conv4 = nn.Conv2d(num_features, num_features, kernel_size=3, padding=1)
         self.relu = nn.ReLU(inplace=True)
-        self.conv5 = nn.Conv2d(feature_size, num_anchors * 4, kernel_size=3, padding=1)
+        self.conv5 = nn.Conv2d(num_features, num_anchors * 4, kernel_size=3, padding=1)
 
     def forward(self, x):
         # Box subnet
@@ -94,15 +94,30 @@ class RegressionModel(nn.Module):
 
 
 class RetinaNet(nn.Module):
-    num_anchors = 9
-
-    def __init__(self, in_channels=1, num_classes=2, num_features=256):
+    '''
+        RetinaNet class.
+    '''
+    def __init__(self, in_channels=1, num_classes=2, num_features=256, num_anchors=9):
         super(RetinaNet, self).__init__()
-
+        # Parameters
+        self.num_classes = num_classes
+        self.in_features = num_features
+        self.num_features = num_features
+        self.num_anchors = num_anchors
+        # Define model blocks
         self.fpn = PyramidFeatures(in_channels=in_channels, num_features=num_features)
+        self.classification = ClassificationModel(in_features=num_features,
+                                                  num_features=num_features,
+                                                  num_anchors=num_anchors,
+                                                  num_classes=num_classes)
+        self.regression = RegressionModel(in_features=num_features,
+                                            num_features=num_features,
+                                            num_anchors=9)
+
 
     def forward(self, x):
         y = self.fpn(x)
+
         return y
 
 
@@ -111,9 +126,10 @@ if __name__ == "__main__":
     from torch.autograd import Variable
 
     net = RetinaNet(in_channels=1)
-    preds = net( Variable( torch.randn(2,1,512,512) ) )
+    features = net( Variable( torch.randn(2,1,512,512) ) )
 
-    for p in preds:
-        print(p.shape)
+    for feat in features:
+        print(feat.shape)
+
 
     print('')
