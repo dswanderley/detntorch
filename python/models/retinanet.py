@@ -12,9 +12,11 @@ import torch.nn as nn
 try:
     import models.retina_utils.losses as losses
     from models.fpn import PyramidFeatures
+    from models.retina_utils.utils import DataEncoder
 except:
     import retina_utils.losses as losses
     from fpn import PyramidFeatures
+    from retina_utils.utils import DataEncoder
 
 
 class ClassificationModel(nn.Module):
@@ -122,10 +124,13 @@ class RetinaNet(nn.Module):
                                             num_anchors=num_anchors)
         # Loss
         self.focalLoss = losses.FocalLoss(num_classes=num_classes)
+        # Encoder
+        self.encoder = DataEncoder()
 
     def forward(self, x, tgts=None):
         cls_preds = []
         box_preds = []
+        bs, ch, w, h = x.shape
 
         # Get Pyramid features
         features = self.fpn(x)
@@ -140,12 +145,20 @@ class RetinaNet(nn.Module):
         lbl_preds = torch.cat(cls_preds, dim=1)
         box_preds = torch.cat(box_preds, dim=1)
 
-        if self.training:
+        if tgts is not None:
             loss = self.focalLoss( box_preds, tgts['boxes'],
                                     lbl_preds, tgts['labels'] )
             return loss
         else:
-            return box_preds, lbl_preds
+            # output in tensorbord faster rcnn style
+            detections = []
+            for bbxs, lbls in zip(box_preds, lbl_preds):
+                boxes, labels = encoder.decode(bbxs.data.squeeze(), lbls.data.squeeze(), (w,h))
+                detections.append({
+                        'boxes': boxes,
+                        'labels': labels
+                    })
+            return detections
 
     def freeze_bn(self):
         '''Freeze BatchNorm layers.'''
@@ -164,6 +177,8 @@ if __name__ == "__main__":
     in_channels = 1
     bs = 2
     w = h = 512
+    training = False
+
     # Create inputs
     imgs = Variable( torch.randn(bs,in_channels,w,h) )
     boxes = [   torch.FloatTensor( [ [120, 130, 300, 350], [200, 200, 250, 250] ] ),
@@ -184,12 +199,11 @@ if __name__ == "__main__":
 
     # Load network
     net = RetinaNet(in_channels=in_channels)
-    #net.eval()
-    net.train()
-    out = net( imgs, tgts )
-
-    #for data in out:
-    #    print(data.shape)
-
+    if training:
+        net.train()
+        out = net( imgs, tgts )
+    else:
+        net.eval()
+        detections = net( imgs )
 
     print('')

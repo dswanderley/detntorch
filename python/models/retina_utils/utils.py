@@ -116,7 +116,11 @@ def box_nms(bboxes, scores, threshold=0.5, mode='union'):
 
     keep = []
     while order.numel() > 0:
-        i = order[0]
+
+        if len(order.shape) == 0:
+              break
+
+        i = order[0].item()
         keep.append(i)
 
         if order.numel() == 1:
