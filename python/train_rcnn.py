@@ -27,7 +27,7 @@ from utils.helper import reduce_dict, gettrainname
 
 class Training:
     """
-        Training classe
+        Training class
     """
 
     def __init__(self, model, device, train_set, valid_set, optim, class_names,

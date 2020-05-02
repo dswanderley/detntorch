@@ -29,7 +29,7 @@ from utils.helper import gettrainname
 
 class Training:
     """
-        Training classe
+        Training class
     """
 
     def __init__(self, model, device, train_set, valid_set, optim,
