@@ -106,15 +106,16 @@ class RetinaNet(nn.Module):
     '''
         RetinaNet class.
     '''
-    def __init__(self, in_channels=1, num_classes=2, num_features=256, num_anchors=9):
+    def __init__(self, in_channels=1, num_classes=2, num_features=256, num_anchors=9, pretrained=False):
         super(RetinaNet, self).__init__()
         # Parameters
         self.num_classes = num_classes
         self.in_features = num_features
         self.num_features = num_features
         self.num_anchors = num_anchors
+        self.pretrained = pretrained
         # Define model blocks
-        self.fpn = PyramidFeatures(in_channels=in_channels, num_features=num_features)
+        self.fpn = PyramidFeatures(in_channels=in_channels, num_features=num_features, pretrained=pretrained)
         self.classification = ClassificationModel(in_features=num_features,
                                                   num_features=num_features,
                                                   num_anchors=num_anchors,

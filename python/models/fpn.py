@@ -124,14 +124,15 @@ class PyramidFeatures(nn.Module):
     '''
     Features Pyramid Network
     '''
-    def __init__(self, in_channels=3, num_features=256, backbone_name='resnet50', pretrained=True):
+    def __init__(self, in_channels=3, num_features=256, backbone_name='resnet50', pretrained=False):
         super(PyramidFeatures, self).__init__()
         # parametes
         self.in_channels = in_channels
         self.num_features = num_features
         self.backbone_name = backbone_name
+        self.pretrained = pretrained
         # Bottom-up pathway
-        self.backbone = ResNetBackbone(in_channels=in_channels, backbone_model=backbone_name, pretrained=True)
+        self.backbone = ResNetBackbone(in_channels=in_channels, backbone_model=backbone_name, pretrained=pretrained)
         # Top-down pathway
         self.uplayer1 = UpsampleLike(self.backbone.fpn_sizes[2], num_features)
         self.uplayer2 = UpsampleLike(self.backbone.fpn_sizes[1], num_features)
