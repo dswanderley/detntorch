@@ -10,8 +10,10 @@ import torch
 import torch.nn as nn
 
 try:
+    import models.retina_utils.losses as losses
     from models.fpn import PyramidFeatures
 except:
+    import retina_utils.losses as losses
     from fpn import PyramidFeatures
 
 
@@ -118,8 +120,10 @@ class RetinaNet(nn.Module):
         self.regression = RegressionModel(in_features=num_features,
                                             num_features=num_features,
                                             num_anchors=num_anchors)
+        # Loss
+        self.focalLoss = losses.FocalLoss(num_classes=num_classes)
 
-    def forward(self, x):
+    def forward(self, x, tgts=None):
         cls_preds = []
         box_preds = []
 
@@ -133,10 +137,15 @@ class RetinaNet(nn.Module):
             bpred = self.regression(feat)
             box_preds.append(bpred)
         # Convert to tensor
-        classes = torch.cat(cls_preds, dim=1)
-        boxes = torch.cat(box_preds, dim=1)
+        lbl_preds = torch.cat(cls_preds, dim=1)
+        box_preds = torch.cat(box_preds, dim=1)
 
-        return classes, boxes
+        if self.training:
+            loss = self.focalLoss( box_preds, tgts['boxes'],
+                                    lbl_preds, tgts['labels'] )
+            return loss
+        else:
+            return box_preds, lbl_preds
 
     def freeze_bn(self):
         '''Freeze BatchNorm layers.'''
@@ -148,12 +157,39 @@ class RetinaNet(nn.Module):
 
 if __name__ == "__main__":
     from torch.autograd import Variable
+    from retina_utils.utils import DataEncoder
 
-    net = RetinaNet(in_channels=1)
-    out = net( Variable( torch.randn(2,1,512,512) ) )
+    encoder = DataEncoder()
 
-    for data in out:
-        print(data.shape)
+    in_channels = 1
+    bs = 2
+    w = h = 512
+    # Create inputs
+    imgs = Variable( torch.randn(bs,in_channels,w,h) )
+    boxes = [   torch.FloatTensor( [ [120, 130, 300, 350], [200, 200, 250, 250] ] ),
+                torch.FloatTensor( [ [100, 150, 150, 200] ] ) ]
+    labels = [ torch.LongTensor([1, 0]), torch.LongTensor([1]) ]
+    # Encode targets
+    box_targets = []
+    cls_targets = []
+    for i in range(bs):
+        loc_target, cls_target = encoder.encode(boxes[i], labels[i], input_size=(w,h))
+        box_targets.append(loc_target)
+        cls_targets.append(cls_target)
+    # Set in a dict.
+    tgts = {
+        'boxes': torch.stack(box_targets),
+        'labels': torch.stack(cls_targets)
+    }
+
+    # Load network
+    net = RetinaNet(in_channels=in_channels)
+    #net.eval()
+    net.train()
+    out = net( imgs, tgts )
+
+    #for data in out:
+    #    print(data.shape)
 
 
     print('')

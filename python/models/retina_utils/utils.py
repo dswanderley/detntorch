@@ -159,7 +159,7 @@ def one_hot_embedding(labels, num_classes):
 
 class DataEncoder:
     def __init__(self):
-        self.anchor_areas = [32*32., 64*64., 128*128., 256*256., 512*512.]  # p3 -> p7
+        self.anchor_areas = [4*4., 8*8., 32*32., 64*64., 128*128.] #, 256*256., 512*512.]  # p3 -> p7
         self.aspect_ratios = [1/2., 1/1., 2/1.]
         self.scale_ratios = [1., pow(2,1/3.), pow(2,2/3.)]
         self.anchor_wh = self._get_anchor_wh()
@@ -190,15 +190,16 @@ class DataEncoder:
                         where #anchors = fmw * fmh * #anchors_per_cell
         '''
         num_fms = len(self.anchor_areas)
-        fm_sizes = [(input_size/pow(2.,i+3)).ceil() for i in range(num_fms)]  # p3 -> p7 feature map sizes
+        #fm_sizes = [(input_size/pow(2.,i+3)).ceil() for i in range(num_fms)]  # p3 -> p7 feature map sizes
+        fm_sizes =[ (math.sqrt(a) * input_size / input_size).ceil() for a in self.anchor_areas ]
 
         boxes = []
         for i in range(num_fms):
             fm_size = fm_sizes[i]
-            grid_size = input_size / fm_size
+            grid_size = (input_size / fm_size).long()
             fm_w, fm_h = int(fm_size[0]), int(fm_size[1])
             xy = meshgrid(fm_w,fm_h) + 0.5  # [fm_h*fm_w, 2]
-            xy = (xy*grid_size).view(fm_h,fm_w,1,2).expand(fm_h,fm_w,9,2)
+            xy = (xy*grid_size).view(fm_h,fm_w,1,2).expand(fm_h,fm_w,9,2).float()
             wh = self.anchor_wh[i].view(1,1,9,2).expand(fm_h,fm_w,9,2)
             box = torch.cat([xy,wh], 3)  # [x,y,w,h]
             boxes.append(box.view(-1,4))

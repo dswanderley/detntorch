@@ -62,9 +62,11 @@ class FocalLoss(nn.Module):
         '''
         alpha = 0.25
 
-        t = one_hot_embedding(y.data.cpu(), 1+self.num_classes)
+        t = one_hot_embedding(y.data.cpu(), 1 + self.num_classes)
         t = t[:,1:]
-        t = Variable(t).cuda()
+        if torch.cuda.is_available():
+          t.to(x.device)
+          y.to(x.device)
 
         xt = x*(2*t-1)  # xt = x if t > 0 else -x
         pt = (2*xt+1).sigmoid()
@@ -103,6 +105,6 @@ class FocalLoss(nn.Module):
         masked_cls_preds = cls_preds[mask].view(-1,self.num_classes)
         cls_loss = self.focal_loss_alt(masked_cls_preds, cls_targets[pos_neg])
 
-        print('loc_loss: %.3f | cls_loss: %.3f' % (loc_loss.data[0]/num_pos, cls_loss.data[0]/num_pos), end=' | ')
-        loss = (loc_loss+cls_loss)/num_pos
+        print('loc_loss: %.3f | cls_loss: %.3f' % (loc_loss.item()/num_pos, cls_loss.item()/num_pos), end=' | ')
+        loss = (loc_loss+cls_loss) / num_pos
         return loss
