@@ -82,7 +82,7 @@ if __name__ == "__main__":
         # Load state dictionary
         state = torch.load(weights_path)
         model.load_state_dict(state['state_dict'])
-    
+
     model.eval()
 
     img_names = []  # Stores image paths
@@ -93,17 +93,17 @@ if __name__ == "__main__":
     print("\nPerforming object detection:")
     prev_time = time.time()
     for batch_i, (names, imgs, targets) in enumerate(dataloader):
-                
+
         # Get images and targets
         images = torch.stack(imgs).to(device)
 
-        targets = [{ 'boxes':  tgt['boxes'].to(device),'labels': tgt['labels'].to(device) } 
+        targets = [{ 'boxes':  tgt['boxes'].to(device),'labels': tgt['labels'].to(device) }
                     for tgt in targets]
 
         # Get detections
         with torch.no_grad():
             detections = model(images)
-            detections = non_max_suppression(detections, opt.conf_thres, opt.nms_thres) # Removes detections with lower score 
+            detections = non_max_suppression(detections, opt.conf_thres, opt.nms_thres) # Removes detections with lower score
 
         # Log progress
         current_time = time.time()
@@ -151,8 +151,8 @@ if __name__ == "__main__":
                 if score > 0.:
                     cls_pred = detections['labels'][idx].cpu()
                     # Add data to table
-                    table.append([fname, str(img_i + 1), str(idx + 1), 
-                                class_names[int(cls_pred.item())], str(score.item()), 
+                    table.append([fname, str(img_i + 1), str(idx + 1),
+                                class_names[int(cls_pred.item())], str(score.item()),
                                 str(x1.item()), str(y1.item()), str(x2.item()), str(y2.item())])
 
                     print("\t+ Label: %s, Score: %.5f" % (class_names[int(cls_pred)], score.item()))

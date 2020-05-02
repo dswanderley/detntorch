@@ -82,7 +82,7 @@ class Training:
             else:
                 images = torch.stack(imgs).to(self.device)
 
-            targets = [{ 'boxes':  tgt['boxes'].to(self.device),'labels': tgt['labels'].to(self.device) } 
+            targets = [{ 'boxes':  tgt['boxes'].to(self.device),'labels': tgt['labels'].to(self.device) }
                         for tgt in targets]
 
             # Forward and loss
@@ -118,7 +118,7 @@ class Training:
         info.append(('train_avg_loss', avg_loss_train))
         for tag, value in info:
             self.logger.add_scalar(tag, value, epoch+1)
-        
+
         # 2. Log values and gradients of the parameters (histogram summary)
         for rcnn_tag, value in self.model.named_parameters():
             # Define tag name
@@ -163,7 +163,7 @@ class Training:
             # ========================= Training =============================== #
             avg_loss_train = self._iterate_train(data_loader_train)
             print('Training loss:  {:f}'.format(avg_loss_train))
-            
+
 
             # ========================= Validation ============================= #
             precision, recall, AP, f1, ap_class = evaluate(self.model,
@@ -180,7 +180,7 @@ class Training:
                 ("val_mAP", AP.mean()),
                 ("val_f1", f1.mean()),
             ]
-                                        
+
             # Print class APs and mAP
             ap_table = [["Index", "Class name", "AP"]]
             for i, c in enumerate(ap_class):
@@ -218,7 +218,7 @@ class Training:
 
 
 if __name__ == "__main__":
-       
+
     parser = argparse.ArgumentParser()
     # Training parameters
     parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
@@ -232,10 +232,10 @@ if __name__ == "__main__":
 
     opt = parser.parse_args()
     print(opt)
-    
+
     # Classes names
     cls_names = ['background','follicle','ovary']
-    
+
     # Input parameters
     n_classes = opt.num_classes
     n_epochs = opt.num_epochs
@@ -243,7 +243,7 @@ if __name__ == "__main__":
     input_channels = opt.num_channels
     network_name = 'faster_rcnn'
     train_name = gettrainname(network_name)
-    
+
     # Load CUDA if exist
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -280,11 +280,11 @@ if __name__ == "__main__":
 
     # Run training
     training = Training(model, device, dataset_train, dataset_val,
-                        optimizer, 
+                        optimizer,
                         logger=writer,
                         class_names=cls_names[:2],
                         train_name=train_name,
-                        iou_thres=opt.iou_thres, 
+                        iou_thres=opt.iou_thres,
                         conf_thres=opt.conf_thres,
                         nms_thres=opt.nms_thres)
     training.train(epochs=n_epochs, batch_size=batch_size)

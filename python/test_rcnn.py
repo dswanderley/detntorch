@@ -76,7 +76,7 @@ def batch_statistics(outputs, targets, iou_threshold):
             continue
 
         output = outputs[sample_i]
-        pred_boxes = output['boxes'] 
+        pred_boxes = output['boxes']
         pred_scores = output['scores'] if len(output['scores'].shape) == 1 else output['scores'][:,0]
         pred_labels = output['labels'] if len(output['labels'].shape) == 1 else output['labels'][:,0]
 
@@ -88,7 +88,7 @@ def batch_statistics(outputs, targets, iou_threshold):
 
         if len(target_boxes):
             detected_boxes = []
-            
+
             for pred_i, (pred_box, pred_label) in enumerate(zip(pred_boxes, pred_labels)):
 
                 # If targets are found break
@@ -126,13 +126,13 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_
         for tgt in targets:
             labels += tgt['labels'].tolist()
         # Targets
-        targets = [{ 'boxes':  tgt['boxes'].to(device),'labels': tgt['labels'].to(device) } 
+        targets = [{ 'boxes':  tgt['boxes'].to(device),'labels': tgt['labels'].to(device) }
                     for tgt in targets]
 
-        # Run prediction 
+        # Run prediction
         with torch.no_grad():
             outputs = model(images)
-            outputs = non_max_suppression(outputs, conf_thres=conf_thres, nms_thres=nms_thres) # Removes detections with lower score 
+            outputs = non_max_suppression(outputs, conf_thres=conf_thres, nms_thres=nms_thres) # Removes detections with lower score
 
         sample_metrics += batch_statistics(outputs,
                                 targets,
@@ -145,8 +145,8 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_
                 im = imgs[i]
                 out_bb = outputs[i]
                 # Get RGB image with BB
-                im_np = printBoudingBoxes(im, out_bb['boxes'], 
-                                            lbl=out_bb['labels'], 
+                im_np = printBoudingBoxes(im, out_bb['boxes'],
+                                            lbl=out_bb['labels'],
                                             score=out_bb['scores'])
                 # Save image
                 Image.fromarray((255*im_np).astype(np.uint8)).save('../predictions/faster_rcnn/' + im_name)
@@ -167,7 +167,7 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_
 
 
 if __name__ == "__main__":
-    
+
     from terminaltables import AsciiTable
 
     parser = argparse.ArgumentParser()
@@ -184,7 +184,7 @@ if __name__ == "__main__":
 
     opt = parser.parse_args()
     print(opt)
-    
+
     # Classes names
     class_names = ['background','follicle','ovary']
 

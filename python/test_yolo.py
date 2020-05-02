@@ -85,7 +85,7 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_
 
 
 if __name__ == "__main__":
-    
+
     from terminaltables import AsciiTable
 
     parser = argparse.ArgumentParser()
@@ -101,7 +101,7 @@ if __name__ == "__main__":
 
     opt = parser.parse_args()
     print(opt)
-    
+
     # Classes names
     class_names = ['background','follicle','ovary']
 
@@ -158,7 +158,7 @@ if __name__ == "__main__":
         ("val_mAP", AP.mean()),
         ("val_f1", f1.mean()),
     ]
-                                
+
     # Print class APs and mAP
     ap_table = [["Index", "Class name", "AP"]]
     for i, c in enumerate(ap_class):

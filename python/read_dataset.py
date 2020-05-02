@@ -26,7 +26,7 @@ dataset_folder = ['train', 'val', 'test']
 class_names = ['background','follicle','ovary']
 
 # output table
-table_header = ['dataset', 'filename', 'class', 
+table_header = ['dataset', 'filename', 'class',
                 'x1', 'y1', 'x2', 'y2',
                 'xc', 'yc', 'w', 'h' ]
 data_table = [table_header]

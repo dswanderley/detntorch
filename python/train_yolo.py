@@ -97,15 +97,15 @@ class Training:
         # Active train
         self.model.train()
         self.model = self.model.to(self.device)
-        
+
         # Batch iteration - Training dataset
         for batch_idx, (names, imgs, targets) in enumerate(tqdm.tqdm(data_loader, desc="Training epoch")):
             batches_done = len(data_loader) * self.epoch + batch_idx
-            
+
             targets = Variable(targets.to(self.device), requires_grad=False)
             imgs = Variable(imgs.to(self.device))
             bs = len(imgs)
-            
+
             # Forward and loss
             loss, output = self.model(imgs, targets=targets)
             loss.backward()
@@ -114,7 +114,7 @@ class Training:
                 # Accumulates gradient before each step
                 self.optimizer.step()
                 self.optimizer.zero_grad()
-            
+
             self.model.seen += imgs.size(0)
 
             # Log metrics at each YOLO layer
@@ -137,7 +137,7 @@ class Training:
         info.append(('train_lotal_loss', avg_loss_train))
         for tag, value in info:
             self.logger.add_scalar(tag, value, epoch+1)
-        
+
         # 2. Log values and gradients of the parameters (histogram summary)
         for yolo_tag, value in self.model.named_parameters():
             # Define tag name
@@ -181,7 +181,7 @@ class Training:
 
             # ========================= Training =============================== #
             loss_train = self._iterate_train(data_loader_train)
-            
+
             # Log metrics at each YOLO layer
             for i, metric in enumerate(self.metrics):
                 formats = {m: "%.6f" for m in self.metrics}
@@ -210,7 +210,7 @@ class Training:
                 ("val_mAP", AP.mean()),
                 ("val_f1", f1.mean()),
             ]
-                                        
+
             # Print class APs and mAP
             ap_table = [["Index", "Class name", "AP"]]
             for i, c in enumerate(ap_class):
@@ -238,7 +238,7 @@ class Training:
                         'optimizer_dict': self.optimizer.state_dict(),
                         'device': str(self.device),
                         'avg_metrics': self.avg_metrics
-                    }, 
+                    },
                     log=log_str )
 
             # ====================== Tensorboard Logging ======================= #
@@ -309,11 +309,11 @@ if __name__ == "__main__":
 
     # Run training
     training = Training(model, device, dataset_train, dataset_val,
-                        optimizer, 
+                        optimizer,
                         logger=writer,
                         class_names=cls_names[:n_classes],
                         train_name=train_name,
-                        iou_thres=opt.iou_thres, 
+                        iou_thres=opt.iou_thres,
                         conf_thres=opt.conf_thres,
                         nms_thres=opt.nms_thres)
     training.train(epochs=n_epochs, batch_size=batch_size)

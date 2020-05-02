@@ -52,7 +52,7 @@ if __name__ == "__main__":
     # Get data configuration
     path = '../datasets/ovarian/im/test/'
     path_gt = path.replace('/im/', '/gt/')
-    
+
     # Load device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -77,8 +77,8 @@ if __name__ == "__main__":
                            ovary_inst=False,
                            out_tuple=True)
 
-    dataloader = DataLoader(dataset, 
-                        batch_size=opt.batch_size, 
+    dataloader = DataLoader(dataset,
+                        batch_size=opt.batch_size,
                         shuffle=False,
                         collate_fn=dataset.collate_fn_yolo)
 
@@ -143,7 +143,7 @@ if __name__ == "__main__":
             bbox_colors = random.sample(colors, n_cls_preds)
             for bb_idx, (x1, y1, x2, y2, conf, cls_conf, cls_pred) in enumerate(detections):
                 # Add data to table
-                table.append([fname, str(img_i + 1), str(bb_idx + 1), 
+                table.append([fname, str(img_i + 1), str(bb_idx + 1),
                                 class_names[int(cls_pred.item())], str(cls_conf.item()), str(conf.item()),
                                 str(x1.item()), str(y1.item()), str(x2.item()), str(y2.item())])
 
