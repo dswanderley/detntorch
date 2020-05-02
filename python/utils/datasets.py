@@ -334,13 +334,12 @@ class OvaryDataset(Dataset):
 
     def collate_fn_rcnn(self, batch):
         '''
-            Merges a list of samples to form a faster rcnn batch (coco based)
+        Merges a list of samples to form a faster rcnn batch (coco based)
 
-            Output: three lists
-                - names:  tuple with filenames
-                - images:   tensor - size (batch_size, channels, height, width)
-                - targets:  dict - {labels, boxes: [x1, y1, x2, y2]}
-
+        Output: three lists
+            - names:  tuple with filenames
+            - images:   tensor - size (batch_size, channels, height, width)
+            - targets:  dict - {labels, boxes: [x1, y1, x2, y2]}
         '''
         names = []
         images = []

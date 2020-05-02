@@ -110,7 +110,7 @@ class RetinaNet(nn.Module):
         super(RetinaNet, self).__init__()
         # Parameters
         self.num_classes = num_classes
-        self.in_features = num_features
+        self.in_channels = in_channels
         self.num_features = num_features
         self.num_anchors = num_anchors
         self.pretrained = pretrained
@@ -147,9 +147,9 @@ class RetinaNet(nn.Module):
         box_preds = torch.cat(box_preds, dim=1)
 
         if tgts is not None:
-            loss = self.focalLoss( box_preds, tgts['boxes'],
-                                    lbl_preds, tgts['labels'] )
-            return loss
+            box_loss, cls_loss = self.focalLoss( box_preds, tgts['boxes'],
+                                                lbl_preds, tgts['labels'] )
+            return { 'box_loss':box_loss, 'cls_los':cls_loss }
         else:
             # output in tensorbord faster rcnn style
             detections = []
