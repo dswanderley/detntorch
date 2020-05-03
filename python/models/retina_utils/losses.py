@@ -64,9 +64,9 @@ class FocalLoss(nn.Module):
 
         t = one_hot_embedding(y.data.cpu(), 1 + self.num_classes)
         t = t[:,1:]
-        if torch.cuda.is_available():
-          t.to(x.device)
-          y.to(x.device)
+        
+        if x.device.type == 'cuda' and torch.cuda.is_available:
+          t = Variable(t.cuda())
 
         xt = x*(2*t-1)  # xt = x if t > 0 else -x
         pt = (2*xt+1).sigmoid()
