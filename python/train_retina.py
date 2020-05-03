@@ -6,6 +6,7 @@ Created on Sat Apr 02 13:10:11 2019
 @description: Train script for RetinaNet.
 """
 
+import sys
 import math
 import argparse
 import torch
@@ -22,7 +23,7 @@ import utils.transformations as tsfrm
 from test_rcnn import evaluate
 from models.retinanet import RetinaNet
 from utils.datasets import OvaryDataset
-from utils.helper import reduce_dict, gettrainname
+from utils.helper import gettrainname
 from models.retina_utils.utils import DataEncoder
 
 
@@ -72,10 +73,11 @@ class Training:
 
         # Active train
         self.model.train()
+        self.model.freeze_bn()
         self.model = self.model.to(self.device)
 
         # Batch iteration - Training dataset
-        for batch_idx, (names, imgs, targets) in enumerate(tqdm(data_loader, desc="Training epoch")):
+        for batch_idx, (names, imgs, tgts) in enumerate(tqdm(data_loader, desc="Training epoch")):
             batches_done = len(data_loader) * self.epoch + batch_idx
 
             # Get images and targets
@@ -87,10 +89,10 @@ class Training:
             # Encode targets
             box_targets = []
             cls_targets = []
-            for tgts, im in zip(targets, imgs):
+            for tgt, im in zip(tgts, imgs):
                 w = im.shape[-2]
                 h = im.shape[-1]
-                loc_target, cls_target = self.encoder.encode(tgts['boxes'], tgts['labels'], input_size=(w,h))
+                loc_target, cls_target = self.encoder.encode(tgt['boxes'], tgt['labels'], input_size=(w,h))
                 box_targets.append(loc_target)
                 cls_targets.append(cls_target)
             # Set in a dict.
@@ -100,6 +102,8 @@ class Training:
             }
 
             # Forward and loss
+            
+            self.optimizer.zero_grad()
             loss_dict = self.model(images, targets)
 
             # Compute loss
@@ -109,11 +113,11 @@ class Training:
             # Test if valid to continue
             if not math.isfinite(loss_value):
                 print("Loss is {}, stopping training".format(loss_value))
-                print(loss_dict_reduced)
+                print(loss_dict)
+                print(names)
                 sys.exit(1)
 
             # Backpropagation
-            self.optimizer.zero_grad()
             losses.backward()
             self.optimizer.step()
 
@@ -279,9 +283,9 @@ if __name__ == "__main__":
                            out_tuple=True)
 
     # Optmization
-    #optimizer = optim.Adam(model.parameters(), lr=0.001)
-    optimizer = optim.SGD(model.parameters(), lr=0.005,
-                                momentum=0.9, weight_decay=0.0005)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    #optimizer = optim.SGD(model.parameters(), lr=0.005,
+    #                            momentum=0.9, weight_decay=0.0005)
 
     # Set logs folder
     log_dir = '../logs/' + train_name + '/'
