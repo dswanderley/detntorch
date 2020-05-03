@@ -163,7 +163,7 @@ def one_hot_embedding(labels, num_classes):
 
 class DataEncoder:
     def __init__(self):
-        self.anchor_areas = [4*4., 8*8., 32*32., 64*64., 128*128.] #, 256*256., 512*512.]  # p3 -> p7
+        self.anchor_areas = [4*4., 8*8., 16*16., 32*32., 64*64.]#, 128*128., 256*256., 512*512.]  # p3 -> p7
         self.aspect_ratios = [1/2., 1/1., 2/1.]
         self.scale_ratios = [1., pow(2,1/3.), pow(2,2/3.)]
         self.anchor_wh = self._get_anchor_wh()

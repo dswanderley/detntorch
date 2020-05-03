@@ -96,27 +96,21 @@ class ResNetBackbone(nn.Module):
         return x2, x3, x4
 
 
-class UpsampleLike(nn.Module):
+class UpsampleAdd(nn.Module):
     '''
     Class for upsample and add (Feature Pyramid lateral connection)
     '''
-    def __init__(self, in_channels, num_features=256):
-        super(UpsampleLike, self).__init__()
+    def __init__(self, scale_factor=2, mode='nearest'):
+        super(UpsampleAdd, self).__init__()
 
-        self.conv1 = nn.Conv2d(in_channels, num_features, kernel_size=1, stride=1, padding=0)
-        self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
-        self.conv2 = nn.Conv2d(num_features, num_features, kernel_size=3, stride=1, padding=1)
+        self.upsample = nn.Upsample(scale_factor=scale_factor, mode=mode)
 
-    def forward(self, x_l, x_r=None):
-        # input from downstream
-        x = self.conv1(x_l)
-        # connect with upstream if exist
-        if x_r is not None:
-            x = x + x_r
+    def forward(self, x1, x2):
         # upsample and outpu
-        x_up = self.upsample(x)
-        x_out = self.conv2(x_up)
-
+        x_up = self.upsample(x1)
+        # input from downstream
+        x_out = x_up + x2
+        
         return x_out
 
 
@@ -133,26 +127,40 @@ class PyramidFeatures(nn.Module):
         self.pretrained = pretrained
         # Bottom-up pathway
         self.backbone = ResNetBackbone(in_channels=in_channels, backbone_model=backbone_name, pretrained=pretrained)
-        # Top-down pathway
-        self.uplayer1 = UpsampleLike(self.backbone.fpn_sizes[2], num_features)
-        self.uplayer2 = UpsampleLike(self.backbone.fpn_sizes[1], num_features)
-        self.uplayer3 = UpsampleLike(self.backbone.fpn_sizes[0], num_features)
-        # High level feature maps
+        # Lateral convolution pathway
+        self.latlayer1 = nn.Conv2d(self.backbone.fpn_sizes[2], num_features, kernel_size=1, stride=1, padding=0)
+        self.latlayer2 = nn.Conv2d(self.backbone.fpn_sizes[1], num_features, kernel_size=1, stride=1, padding=0)
+        self.latlayer3 = nn.Conv2d(self.backbone.fpn_sizes[0], num_features, kernel_size=1, stride=1, padding=0)
+         # High level feature maps
         self.conv6 = nn.Conv2d(self.backbone.fpn_sizes[2], num_features, kernel_size=3, stride=2, padding=1)
         self.relu = nn.ReLU(inplace=True)
         self.conv7 = nn.Conv2d( num_features, num_features, kernel_size=3, stride=2, padding=1)
-
+        # Top-down pathway
+        self.upsample1 = UpsampleAdd()
+        self.upsample2 = UpsampleAdd()
+        # Top layer convs
+        self.toplayer1 = nn.Conv2d(num_features, num_features, kernel_size=3, stride=1, padding=1)
+        self.toplayer2 = nn.Conv2d(num_features, num_features, kernel_size=3, stride=1, padding=1)
+        self.toplayer3 = nn.Conv2d(num_features, num_features, kernel_size=3, stride=1, padding=1)
+       
     def forward(self, x):
         # Bottom-up pathway
         c3, c4, c5 = self.backbone(x)
-        # Top-down pathway
-        p5 = self.uplayer1(c5)
-        p4 = self.uplayer2(c4, p5)
-        p3 = self.uplayer3(c3, p4)
         # High level output
         p6 = self.conv6(c5)
         p7 = self.relu(p6)
         p7 = self.conv7(p7)
+        # Top-down pathway
+        p5 = self.latlayer1(c5)
+        p4 = self.latlayer2(c4)
+        p3 = self.latlayer3(c3)
+        p4 = self.upsample1(p5, p4)
+        p3 = self.upsample2(p4, p3)
+        # Top layers output
+        p5 = self.toplayer1(p5)
+        p4 = self.toplayer2(p4)
+        p3 = self.toplayer3(p3)
+
         # Output from lower to higher level (larger to smaller spatial size)
         return p3, p4, p5, p6, p7
 
