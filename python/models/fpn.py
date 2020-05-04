@@ -46,8 +46,9 @@ class ResNetBackbone(nn.Module):
         self.in_channels = in_channels
         # adjust channels
         if in_channels != 3:
-            self.conv0 = nn.Conv2d(in_channels, 3, 1, stride=1, padding=0)
+            self.conv0 = nn.Conv2d(in_channels, 3, 1, stride=1, padding=0, bias=False)
             self.bn0 = nn.BatchNorm2d(3)
+            self.conv0.weight.data.fill_(1/in_channels)
         self.relu = nn.ReLU(inplace=True)
         # load backbone
         backbone, shortcut_features, bb_out_name = get_backbone(backbone_model, pretrained=pretrained)
@@ -96,24 +97,6 @@ class ResNetBackbone(nn.Module):
         return x2, x3, x4
 
 
-class UpsampleAdd(nn.Module):
-    '''
-    Class for upsample and add (Feature Pyramid lateral connection)
-    '''
-    def __init__(self, scale_factor=2, mode='nearest'):
-        super(UpsampleAdd, self).__init__()
-
-        self.upsample = nn.Upsample(scale_factor=scale_factor, mode=mode)
-
-    def forward(self, x1, x2):
-        # upsample and outpu
-        x_up = self.upsample(x1)
-        # input from downstream
-        x_out = x_up + x2
-        
-        return x_out
-
-
 class PyramidFeatures(nn.Module):
     '''
     Features Pyramid Network
@@ -136,8 +119,8 @@ class PyramidFeatures(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.conv7 = nn.Conv2d( num_features, num_features, kernel_size=3, stride=2, padding=1)
         # Top-down pathway
-        self.upsample1 = UpsampleAdd()
-        self.upsample2 = UpsampleAdd()
+        self.upsample1 = nn.Upsample(scale_factor=2, mode='nearest')
+        self.upsample2 = nn.Upsample(scale_factor=2, mode='nearest')
         # Top layer convs
         self.toplayer1 = nn.Conv2d(num_features, num_features, kernel_size=3, stride=1, padding=1)
         self.toplayer2 = nn.Conv2d(num_features, num_features, kernel_size=3, stride=1, padding=1)
@@ -154,8 +137,8 @@ class PyramidFeatures(nn.Module):
         p5 = self.latlayer1(c5)
         p4 = self.latlayer2(c4)
         p3 = self.latlayer3(c3)
-        p4 = self.upsample1(p5, p4)
-        p3 = self.upsample2(p4, p3)
+        p4 = self.upsample1(p5) + p4
+        p3 = self.upsample2(p4) + p3
         # Top layers output
         p5 = self.toplayer1(p5)
         p4 = self.toplayer2(p4)
