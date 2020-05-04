@@ -31,6 +31,8 @@ class Anchors(nn.Module):
 
     def forward(self, image):
         
+        device = torch.device("cuda:0" if torch.cuda.is_available() and image.device.type == 'cuda'  else "cpu")
+
         image_shape = image.shape[2:]
         image_shape = np.array(image_shape)
         image_shapes = [(image_shape + 2 ** x - 1) // (2 ** x) for x in self.pyramid_levels]
@@ -45,10 +47,7 @@ class Anchors(nn.Module):
 
         all_anchors = np.expand_dims(all_anchors, axis=0)
 
-        if image.device.type == 'cuda' and torch.cuda.is_available:
-            torch.from_numpy(all_anchors.astype(np.float32)).cuda()
-        else:
-            return torch.from_numpy(all_anchors.astype(np.float32))
+        return torch.from_numpy(all_anchors.astype(np.float32)).to(device)
 
 
 def generate_anchors(base_size=16, ratios=None, scales=None):

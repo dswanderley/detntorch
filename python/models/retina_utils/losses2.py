@@ -59,9 +59,6 @@ class FocalLoss(nn.Module):
             boxes = annotations[j]['boxes']
             labels = annotations[j]['labels']
 
-            #bbox_annotation = annotations[j, :, :]
-            #bbox_annotation = bbox_annotation[bbox_annotation[:, 4] != -1]
-
             bbox_annotation = torch.cat( (boxes, labels.unsqueeze(1).float()), dim=1 )
             device = torch.device("cuda:0" if torch.cuda.is_available() and bbox_annotation.device.type == 'cuda'  else "cpu")
             
@@ -103,7 +100,8 @@ class FocalLoss(nn.Module):
 
             # cls_loss = focal_weight * torch.pow(bce, gamma)
             cls_loss = focal_weight * bce
-            cls_loss = torch.where( torch.ne(targets, -1.0), cls_loss, torch.zeros(cls_loss.shape) ).to(device)
+            #
+            cls_loss = torch.where( torch.ne(targets, -1.0), cls_loss, torch.zeros(cls_loss.shape).to(device) )
 
             classification_losses.append( cls_loss.sum() / torch.clamp(num_positive_anchors.float(), min=1.0) )
             

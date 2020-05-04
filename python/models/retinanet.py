@@ -141,7 +141,6 @@ class RetinaNet(nn.Module):
     def forward(self, x, tgts=None):
         cls_preds = []
         box_preds = []
-        bs, ch, w, h = x.shape
 
         # Get Pyramid features
         features = self.fpn(x)
@@ -156,9 +155,10 @@ class RetinaNet(nn.Module):
         lbl_preds = torch.cat(cls_preds, dim=1)
         box_preds = torch.cat(box_preds, dim=1)
 
-        #
+        # Computes anchors to the current batch
         anchors = self.anchors(x)
 
+        # Outputs - return loss if targets are give training
         if tgts is not None:
             loss =  self.focalLoss(lbl_preds, box_preds, anchors, tgts)
             return { 'box_loss':loss[1], 'cls_los':loss[0] }
