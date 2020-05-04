@@ -10,13 +10,19 @@ import torch
 import torch.nn as nn
 
 try:
-    import models.retina_utils.losses as losses
+    #import models.retina_utils.losses as losses
     from models.fpn import PyramidFeatures
     from models.retina_utils.utils import DataEncoder
+    from models.retina_utils.losses2 import FocalLoss
+    from models.retina_utils.anchors import Anchors
+    from models.retina_utils.utils2 import BBoxTransform, ClipBoxes
 except:
-    import retina_utils.losses as losses
+    #import retina_utils.losses as losses
     from fpn import PyramidFeatures
     from retina_utils.utils import DataEncoder
+    from retina_utils.losses2 import FocalLoss
+    from retina_utils.anchors import Anchors
+    from retina_utils.utils2 import BBoxTransform, ClipBoxes
 
 
 class ClassificationModel(nn.Module):
@@ -124,7 +130,11 @@ class RetinaNet(nn.Module):
                                             num_features=num_features,
                                             num_anchors=num_anchors)
         # Loss
-        self.focalLoss = losses.FocalLoss(num_classes=num_classes)
+        self.anchors = Anchors()
+        self.regressBoxes = BBoxTransform()
+        self.clipBoxes = ClipBoxes()
+        self.focalLoss = FocalLoss()
+        #self.focalLoss = losses.FocalLoss(num_classes=num_classes)
         # Encoder
         self.encoder = DataEncoder()
 
@@ -146,10 +156,12 @@ class RetinaNet(nn.Module):
         lbl_preds = torch.cat(cls_preds, dim=1)
         box_preds = torch.cat(box_preds, dim=1)
 
+        #
+        anchors = self.anchors(x)
+
         if tgts is not None:
-            box_loss, cls_loss = self.focalLoss( box_preds, tgts['boxes'],
-                                                lbl_preds, tgts['labels'] )
-            return { 'box_loss':box_loss, 'cls_los':cls_loss }
+            loss =  self.focalLoss(lbl_preds, box_preds, anchors, tgts)
+            return { 'box_loss':loss[1], 'cls_los':loss[0] }
         else:
             # output in tensorbord faster rcnn style
             detections = []
@@ -178,7 +190,7 @@ if __name__ == "__main__":
     in_channels = 1
     bs = 2
     w = h = 512
-    training = False
+    training = True
 
     # Create inputs
     imgs = Variable( torch.randn(bs,in_channels,w,h) )
@@ -186,17 +198,23 @@ if __name__ == "__main__":
                 torch.FloatTensor( [ [100, 150, 150, 200] ] ) ]
     labels = [ torch.LongTensor([1, 0]), torch.LongTensor([1]) ]
     # Encode targets
+    """
     box_targets = []
     cls_targets = []
     for i in range(bs):
         loc_target, cls_target = encoder.encode(boxes[i], labels[i], input_size=(w,h))
         box_targets.append(loc_target)
         cls_targets.append(cls_target)
+    
     # Set in a dict.
     tgts = {
-        'boxes': torch.stack(box_targets),
-        'labels': torch.stack(cls_targets)
+        'boxes': boxes, #torch.stack(box_targets),
+        'labels': labels #torch.stack(cls_targets)
     }
+    """
+
+    tgts = [{ 'boxes':  box,'labels': lbl } #.to(device)
+                        for box, lbl in zip(boxes, labels)]
 
     # Load network
     net = RetinaNet(in_channels=in_channels)
@@ -207,4 +225,4 @@ if __name__ == "__main__":
         net.eval()
         detections = net( imgs )
 
-    print('')
+    print('end')
