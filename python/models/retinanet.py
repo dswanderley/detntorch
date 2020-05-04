@@ -6,6 +6,7 @@ Created on Mon Apr 27 20:03:14 2020
 @description: RetinaNet implementation
 """
 
+import math
 import torch
 import torch.nn as nn
 
@@ -39,25 +40,29 @@ class ClassificationModel(nn.Module):
         self.num_anchors = num_anchors
         # Define model blocks
         self.conv1 = nn.Conv2d(in_features,  num_features, kernel_size=3, padding=1)
+        self.relu1 = nn.ReLU()
         self.conv2 = nn.Conv2d(num_features, num_features, kernel_size=3, padding=1)
+        self.relu2 = nn.ReLU()
         self.conv3 = nn.Conv2d(num_features, num_features, kernel_size=3, padding=1)
+        self.relu3 = nn.ReLU()
         self.conv4 = nn.Conv2d(num_features, num_features, kernel_size=3, padding=1)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu4 = nn.ReLU(inplace=True)
         self.conv5 = nn.Conv2d(num_features, num_anchors * num_classes, kernel_size=3, padding=1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self,x):
         # Classification subnet
         out = self.conv1(x)
-        out = self.relu(out)
+        out = self.relu1(out)
         out = self.conv2(out)
-        out = self.relu(out)
+        out = self.relu2(out)
         out = self.conv3(out)
-        out = self.relu(out)
+        out = self.relu3(out)
         out = self.conv4(out)
-        out = self.relu(out)
+        out = self.relu4(out)
         # Output conv
         out = self.conv5(out) # out is B x C x W x H, with C = n_classes * n_anchors
+        out = self.sigmoid(out)
         # Permute to put W and H in the middle
         out = out.permute(0, 2, 3, 1)
         batch_size, width, height, channels = out.shape
@@ -82,22 +87,25 @@ class RegressionModel(nn.Module):
         self.num_anchors = num_anchors
         # Define model blocks
         self.conv1 = nn.Conv2d(in_features,  num_features, kernel_size=3, padding=1)
+        self.relu1 = nn.ReLU()
         self.conv2 = nn.Conv2d(num_features, num_features, kernel_size=3, padding=1)
+        self.relu2 = nn.ReLU()
         self.conv3 = nn.Conv2d(num_features, num_features, kernel_size=3, padding=1)
+        self.relu3 = nn.ReLU()
         self.conv4 = nn.Conv2d(num_features, num_features, kernel_size=3, padding=1)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu4 = nn.ReLU()
         self.conv5 = nn.Conv2d(num_features, num_anchors * 4, kernel_size=3, padding=1)
 
     def forward(self, x):
         # Box subnet
         out = self.conv1(x)
-        out = self.relu(out)
+        out = self.relu1(out)
         out = self.conv2(out)
-        out = self.relu(out)
+        out = self.relu2(out)
         out = self.conv3(out)
-        out = self.relu(out)
+        out = self.relu3(out)
         out = self.conv4(out)
-        out = self.relu(out)
+        out = self.relu4(out)
         # Output conv
         out = self.conv5(out) # out is B x C x W x H, with C = 4*num_anchors
         # Permute to put W and H in the middle
@@ -134,9 +142,21 @@ class RetinaNet(nn.Module):
         self.regressBoxes = BBoxTransform()
         self.clipBoxes = ClipBoxes()
         self.focalLoss = FocalLoss()
-        #self.focalLoss = losses.FocalLoss(num_classes=num_classes)
         # Encoder
         self.encoder = DataEncoder()
+        # Adjust output weights
+        prior = 0.01
+        self.classification.conv5.weight.data.fill_(0)
+        self.classification.conv5.bias.data.fill_(-math.log((1.0 - prior) / prior))
+        self.regression.conv5.weight.data.fill_(0)
+        self.regression.conv5.bias.data.fill_(0)
+        self.freeze_bn()
+
+    def freeze_bn(self):
+        '''Freeze BatchNorm layers.'''
+        for layer in self.modules():
+            if isinstance(layer, nn.BatchNorm2d):
+                layer.eval()
 
     def forward(self, x, tgts=None):
         cls_preds = []
@@ -172,13 +192,6 @@ class RetinaNet(nn.Module):
                         'labels': labels
                     })
             return detections
-
-    def freeze_bn(self):
-        '''Freeze BatchNorm layers.'''
-        for layer in self.modules():
-            if isinstance(layer, nn.BatchNorm2d):
-                layer.eval()
-
 
 
 if __name__ == "__main__":
