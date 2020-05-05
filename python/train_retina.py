@@ -27,6 +27,7 @@ from utils.helper import gettrainname
 from models.retina_utils.utils import DataEncoder
 
 
+
 class Training:
     """
         Training class
@@ -74,32 +75,17 @@ class Training:
         # Active train
         self.model.train()
         self.model.freeze_bn()
-        self.model = self.model.to(self.device)
 
         # Batch iteration - Training dataset
         for batch_idx, (names, imgs, tgts) in enumerate(tqdm(data_loader, desc="Training epoch")):
             batches_done = len(data_loader) * self.epoch + batch_idx
 
             # Get images and targets
-            if self.model.in_channels == 3:
-                images = [img.to(self.device) for img in imgs]
-            else:
-                images = torch.stack(imgs).to(self.device)
-
-            # Encode targets
-            box_targets = []
-            cls_targets = []
-            for tgt, im in zip(tgts, imgs):
-                w = im.shape[-2]
-                h = im.shape[-1]
-                loc_target, cls_target = self.encoder.encode(tgt['boxes'], tgt['labels'], input_size=(w,h))
-                box_targets.append(loc_target)
-                cls_targets.append(cls_target)
-            # Set in a dict.
-            targets = {
-                'boxes': torch.stack(box_targets).to(self.device),
-                'labels': torch.stack(cls_targets).to(self.device)
-            }
+            images = torch.stack(imgs).to(self.device)
+            
+            # Set targets
+            targets = [{ 'boxes':  tgt['boxes'].to(self.device),'labels': tgt['labels'].to(self.device) } 
+                        for tgt in tgts]
 
             # Forward and loss
             
@@ -113,13 +99,18 @@ class Training:
             # Test if valid to continue
             if not math.isfinite(loss_value):
                 print("Loss is {}, stopping training".format(loss_value))
-                print(loss_dict)
-                print(names)
                 sys.exit(1)
 
             # Backpropagation
             losses.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.1)
             self.optimizer.step()
+
+        print('Epoch: {} | Iteration: {} | Classification loss: {:1.5f} | Regression loss: {:1.5f} | Running loss: {:1.5f}'.format(
+                self.epoch , batch_idx, 
+                float(loss_dict['cls_los'].item()), 
+                float(loss_dict['box_loss'].item()), 
+                loss_value) )
 
         return loss_value
 
@@ -177,7 +168,7 @@ class Training:
             avg_loss_train = self._iterate_train(data_loader_train)
             print('Training loss:  {:f}'.format(avg_loss_train))
 
-
+            '''
             # ========================= Validation ============================= #
             precision, recall, AP, f1, ap_class = evaluate(self.model,
                                                     data_loader_val,
@@ -201,7 +192,7 @@ class Training:
             print(AsciiTable(ap_table).table)
             print("mAP: "+ str(AP.mean()))
             print('\n')
-
+            
             # ======================== Save weights ============================ #
             if (avg_loss_train <= best_loss) and (AP.mean() >= best_ap):
                 best_loss = avg_loss_train
@@ -227,6 +218,7 @@ class Training:
                 self._logging(self.epoch, avg_loss_train, evaluation_metrics)
 
             print('Model {:s} updated!'.format(self.train_name))
+            '''
             print('\n')
 
 
@@ -262,6 +254,7 @@ if __name__ == "__main__":
 
     # Load network model
     model = RetinaNet(in_channels=input_channels, num_classes=n_classes, pretrained=True).to(device)
+    #model = torch.nn.DataParallel(model).to(device)
 
     # Transformation parameters
     transform = tsfrm.Compose([tsfrm.RandomHorizontalFlip(p=0.5),
@@ -283,7 +276,7 @@ if __name__ == "__main__":
                            out_tuple=True)
 
     # Optmization
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=1e-5)
     #optimizer = optim.SGD(model.parameters(), lr=0.005,
     #                            momentum=0.9, weight_decay=0.0005)
 
