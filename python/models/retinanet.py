@@ -12,18 +12,14 @@ import torch.nn as nn
 
 try:
     from models.fpn import PyramidFeatures
-    #import models.retina_utils.losses as losses
-    #from models.retina_utils.utils import DataEncoder
     from models.retina_utils.losses2 import FocalLoss
-    from models.retina_utils.anchors import Anchors
-    from models.retina_utils.utils2 import BBoxTransform, ClipBoxes
+    from models.retina_utils.anchors import Anchors, BBoxTransform, ClipBoxes
+    from models.retina_utils.utils2 import *
 except:
     from fpn import PyramidFeatures
-    #import retina_utils.losses as losses
-    #from retina_utils.utils import DataEncoder
     from retina_utils.losses2 import FocalLoss
-    from retina_utils.anchors import Anchors
-    from retina_utils.utils2 import BBoxTransform, ClipBoxes
+    from retina_utils.anchors import Anchors, BBoxTransform, ClipBoxes
+    from retina_utils.utils2 import *
 
 
 class ClassificationModel(nn.Module):
@@ -197,8 +193,9 @@ class RetinaNet(nn.Module):
             lbl_preds = lbl_preds[:, scores_over_thresh, :]
             transformed_anchors = transformed_anchors[:, scores_over_thresh, :]
             scores = scores[:, scores_over_thresh, :]
-
+            # Apply non-maximum suppression 
             anchors_nms_idx = nms(transformed_anchors[0,:,:], scores[0,:,0], 0.5)
+            nms_scores, nms_class = lbl_preds[0, anchors_nms_idx, :].max(dim=1) # Suppress blocks
 
             return [nms_scores, nms_class, transformed_anchors[0, anchors_nms_idx, :]]
 

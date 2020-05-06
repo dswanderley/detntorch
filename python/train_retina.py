@@ -180,6 +180,8 @@ class Training:
                 images = torch.stack(imgs).to(self.device)
 
                 detections = self.model(images)
+
+                #print(detections)
                 
                 print('eval')
             '''

@@ -10,72 +10,172 @@ https://github.com/yhenon/pytorch-retinanet
 """
 
 import torch
-import torch.nn as nn
-import numpy as np
+import torchvision
+
+from torch import Tensor
+from torch.jit.annotations import Tuple
 
 
-class BBoxTransform(nn.Module):
-    '''
-    Layer for applying regression values to boxes.
-    '''
-    def __init__(self, mean=None, std=None):
-        super(BBoxTransform, self).__init__()
-        # init mean
-        if mean is None:
-            self.mean = torch.from_numpy(np.array([0, 0, 0, 0]).astype(np.float32))
-        else:
-            self.mean = mean
-        # init std
-        if std is None:
-           self.std = torch.from_numpy(np.array([0.1, 0.1, 0.2, 0.2]).astype(np.float32))
-        else:
-            self.std = std
+def nms(boxes, scores, iou_threshold):
+    # type: (Tensor, Tensor, float)
+    """
+    Performs non-maximum suppression (NMS) on the boxes according
+    to their intersection-over-union (IoU).
 
-    def forward(self, boxes, deltas):
-        device = torch.device("cuda:0" if torch.cuda.is_available() and boxes.device.type == 'cuda'  else "cpu")
-        self.mean.to(device)
-        self.std.to(device)
+    NMS iteratively removes lower scoring boxes which have an
+    IoU greater than iou_threshold with another (higher scoring)
+    box.
 
-        widths  = boxes[:, :, 2] - boxes[:, :, 0]
-        heights = boxes[:, :, 3] - boxes[:, :, 1]
-        ctr_x   = boxes[:, :, 0] + 0.5 * widths
-        ctr_y   = boxes[:, :, 1] + 0.5 * heights
+    Parameters
+    ----------
+    boxes : Tensor[N, 4])
+        boxes to perform NMS on. They
+        are expected to be in (x1, y1, x2, y2) format
+    scores : Tensor[N]
+        scores for each one of the boxes
+    iou_threshold : float
+        discards all overlapping
+        boxes with IoU > iou_threshold
 
-        dx = deltas[:, :, 0] * self.std[0] + self.mean[0]
-        dy = deltas[:, :, 1] * self.std[1] + self.mean[1]
-        dw = deltas[:, :, 2] * self.std[2] + self.mean[2]
-        dh = deltas[:, :, 3] * self.std[3] + self.mean[3]
-
-        pred_ctr_x = ctr_x + dx * widths
-        pred_ctr_y = ctr_y + dy * heights
-        pred_w     = torch.exp(dw) * widths
-        pred_h     = torch.exp(dh) * heights
-
-        pred_boxes_x1 = pred_ctr_x - 0.5 * pred_w
-        pred_boxes_y1 = pred_ctr_y - 0.5 * pred_h
-        pred_boxes_x2 = pred_ctr_x + 0.5 * pred_w
-        pred_boxes_y2 = pred_ctr_y + 0.5 * pred_h
-
-        pred_boxes = torch.stack([pred_boxes_x1, pred_boxes_y1, pred_boxes_x2, pred_boxes_y2], dim=2)
-
-        return pred_boxes
+    Returns
+    -------
+    keep : Tensor
+        int64 tensor with the indices
+        of the elements that have been kept
+        by NMS, sorted in decreasing order of scores
+    """
+    return torch.ops.torchvision.nms(boxes, scores, iou_threshold)
 
 
-class ClipBoxes(nn.Module):
-    '''
-    Layer to clip box values to lie inside a given shape.
-    '''
-    def __init__(self, width=None, height=None):
-        super(ClipBoxes, self).__init__()
+def batched_nms(boxes, scores, idxs, iou_threshold):
+    # type: (Tensor, Tensor, Tensor, float)
+    """
+    Performs non-maximum suppression in a batched fashion.
 
-    def forward(self, boxes, img):
+    Each index value correspond to a category, and NMS
+    will not be applied between elements of different categories.
 
-        batch_size, num_channels, height, width = img.shape
+    Parameters
+    ----------
+    boxes : Tensor[N, 4]
+        boxes where NMS will be performed. They
+        are expected to be in (x1, y1, x2, y2) format
+    scores : Tensor[N]
+        scores for each one of the boxes
+    idxs : Tensor[N]
+        indices of the categories for each one of the boxes.
+    iou_threshold : float
+        discards all overlapping boxes
+        with IoU > iou_threshold
 
-        boxes[:, :, 0] = torch.clamp(boxes[:, :, 0], min=0)
-        boxes[:, :, 1] = torch.clamp(boxes[:, :, 1], min=0)
+    Returns
+    -------
+    keep : Tensor
+        int64 tensor with the indices of
+        the elements that have been kept by NMS, sorted
+        in decreasing order of scores
+    """
+    if boxes.numel() == 0:
+        return torch.empty((0,), dtype=torch.int64, device=boxes.device)
+    # strategy: in order to perform NMS independently per class.
+    # we add an offset to all the boxes. The offset is dependent
+    # only on the class idx, and is large enough so that boxes
+    # from different classes do not overlap
+    max_coordinate = boxes.max()
+    offsets = idxs.to(boxes) * (max_coordinate + 1)
+    boxes_for_nms = boxes + offsets[:, None]
+    keep = nms(boxes_for_nms, scores, iou_threshold)
+    return keep
 
-        boxes[:, :, 2] = torch.clamp(boxes[:, :, 2], max=width)
-        boxes[:, :, 3] = torch.clamp(boxes[:, :, 3], max=height)
-      
-        return boxes
+
+def remove_small_boxes(boxes, min_size):
+    # type: (Tensor, float)
+    """
+    Remove boxes which contains at least one side smaller than min_size.
+
+    Arguments:
+        boxes (Tensor[N, 4]): boxes in (x1, y1, x2, y2) format
+        min_size (float): minimum size
+
+    Returns:
+        keep (Tensor[K]): indices of the boxes that have both sides
+            larger than min_size
+    """
+    ws, hs = boxes[:, 2] - boxes[:, 0], boxes[:, 3] - boxes[:, 1]
+    keep = (ws >= min_size) & (hs >= min_size)
+    keep = keep.nonzero().squeeze(1)
+    return keep
+
+
+def clip_boxes_to_image(boxes, size):
+    # type: (Tensor, Tuple[int, int])
+    """
+    Clip boxes so that they lie inside an image of size `size`.
+
+    Arguments:
+        boxes (Tensor[N, 4]): boxes in (x1, y1, x2, y2) format
+        size (Tuple[height, width]): size of the image
+
+    Returns:
+        clipped_boxes (Tensor[N, 4])
+    """
+    dim = boxes.dim()
+    boxes_x = boxes[..., 0::2]
+    boxes_y = boxes[..., 1::2]
+    height, width = size
+
+    if torchvision._is_tracing():
+        boxes_x = torch.max(boxes_x, torch.tensor(0, dtype=boxes.dtype, device=boxes.device))
+        boxes_x = torch.min(boxes_x, torch.tensor(width, dtype=boxes.dtype, device=boxes.device))
+        boxes_y = torch.max(boxes_y, torch.tensor(0, dtype=boxes.dtype, device=boxes.device))
+        boxes_y = torch.min(boxes_y, torch.tensor(height, dtype=boxes.dtype, device=boxes.device))
+    else:
+        boxes_x = boxes_x.clamp(min=0, max=width)
+        boxes_y = boxes_y.clamp(min=0, max=height)
+
+    clipped_boxes = torch.stack((boxes_x, boxes_y), dim=dim)
+    return clipped_boxes.reshape(boxes.shape)
+
+
+def box_area(boxes):
+    """
+    Computes the area of a set of bounding boxes, which are specified by its
+    (x1, y1, x2, y2) coordinates.
+
+    Arguments:
+        boxes (Tensor[N, 4]): boxes for which the area will be computed. They
+            are expected to be in (x1, y1, x2, y2) format
+
+    Returns:
+        area (Tensor[N]): area for each box
+    """
+    return (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+
+
+# implementation from https://github.com/kuangliu/torchcv/blob/master/torchcv/utils/box.py
+# with slight modifications
+def box_iou(boxes1, boxes2):
+    """
+    Return intersection-over-union (Jaccard index) of boxes.
+
+    Both sets of boxes are expected to be in (x1, y1, x2, y2) format.
+
+    Arguments:
+        boxes1 (Tensor[N, 4])
+        boxes2 (Tensor[M, 4])
+
+    Returns:
+        iou (Tensor[N, M]): the NxM matrix containing the pairwise
+            IoU values for every element in boxes1 and boxes2
+    """
+    area1 = box_area(boxes1)
+    area2 = box_area(boxes2)
+
+    lt = torch.max(boxes1[:, None, :2], boxes2[:, :2])  # [N,M,2]
+    rb = torch.min(boxes1[:, None, 2:], boxes2[:, 2:])  # [N,M,2]
+
+    wh = (rb - lt).clamp(min=0)  # [N,M,2]
+    inter = wh[:, :, 0] * wh[:, :, 1]  # [N,M]
+
+    iou = inter / (area1[:, None] + area2 - inter)
+    return iou
