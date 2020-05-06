@@ -11,16 +11,16 @@ import torch
 import torch.nn as nn
 
 try:
-    #import models.retina_utils.losses as losses
     from models.fpn import PyramidFeatures
-    from models.retina_utils.utils import DataEncoder
+    #import models.retina_utils.losses as losses
+    #from models.retina_utils.utils import DataEncoder
     from models.retina_utils.losses2 import FocalLoss
     from models.retina_utils.anchors import Anchors
     from models.retina_utils.utils2 import BBoxTransform, ClipBoxes
 except:
-    #import retina_utils.losses as losses
     from fpn import PyramidFeatures
-    from retina_utils.utils import DataEncoder
+    #import retina_utils.losses as losses
+    #from retina_utils.utils import DataEncoder
     from retina_utils.losses2 import FocalLoss
     from retina_utils.anchors import Anchors
     from retina_utils.utils2 import BBoxTransform, ClipBoxes
@@ -142,8 +142,6 @@ class RetinaNet(nn.Module):
         self.regressBoxes = BBoxTransform()
         self.clipBoxes = ClipBoxes()
         self.focalLoss = FocalLoss()
-        # Encoder
-        self.encoder = DataEncoder()
         # Adjust output weights
         prior = 0.01
         self.classification.conv5.weight.data.fill_(0)
@@ -183,15 +181,27 @@ class RetinaNet(nn.Module):
             loss =  self.focalLoss(lbl_preds, box_preds, anchors, tgts)
             return { 'box_loss':loss[1], 'cls_los':loss[0] }
         else:
-            # output in tensorbord faster rcnn style
-            detections = []
-            for bbxs, lbls in zip(box_preds, lbl_preds):
-                boxes, labels = encoder.decode(bbxs.data.squeeze(), lbls.data.squeeze(), (w,h))
-                detections.append({
-                        'boxes': boxes,
-                        'labels': labels
-                    })
-            return detections
+            # Apply predicted regression to anchors and then clip box values
+            transformed_anchors = self.regressBoxes(anchors, box_preds)
+            transformed_anchors = self.clipBoxes(transformed_anchors, x)
+
+            # Filter detections (apply NMS / score threshold / select top-k)
+            scores = torch.max(lbl_preds, dim=2, keepdim=True)[0]
+
+            scores_over_thresh = (scores > 0.05)[0, :, 0]
+
+            if scores_over_thresh.sum() == 0:
+                # no boxes to NMS, just return
+                return [torch.zeros(0), torch.zeros(0), torch.zeros(0, 4)]
+
+            lbl_preds = lbl_preds[:, scores_over_thresh, :]
+            transformed_anchors = transformed_anchors[:, scores_over_thresh, :]
+            scores = scores[:, scores_over_thresh, :]
+
+            anchors_nms_idx = nms(transformed_anchors[0,:,:], scores[0,:,0], 0.5)
+
+            return [nms_scores, nms_class, transformed_anchors[0, anchors_nms_idx, :]]
+
 
 
 if __name__ == "__main__":
@@ -203,29 +213,14 @@ if __name__ == "__main__":
     in_channels = 1
     bs = 2
     w = h = 512
-    training = True
+    training = False
 
     # Create inputs
-    imgs = Variable( torch.randn(bs,in_channels,w,h) )
+    imgs = Variable( torch.randn(bs, in_channels, w, h) )
     boxes = [   torch.FloatTensor( [ [120, 130, 300, 350], [200, 200, 250, 250] ] ),
                 torch.FloatTensor( [ [100, 150, 150, 200] ] ) ]
     labels = [ torch.LongTensor([1, 0]), torch.LongTensor([1]) ]
     # Encode targets
-    """
-    box_targets = []
-    cls_targets = []
-    for i in range(bs):
-        loc_target, cls_target = encoder.encode(boxes[i], labels[i], input_size=(w,h))
-        box_targets.append(loc_target)
-        cls_targets.append(cls_target)
-    
-    # Set in a dict.
-    tgts = {
-        'boxes': boxes, #torch.stack(box_targets),
-        'labels': labels #torch.stack(cls_targets)
-    }
-    """
-
     tgts = [{ 'boxes':  box,'labels': lbl } #.to(device)
                         for box, lbl in zip(boxes, labels)]
 

@@ -168,8 +168,21 @@ class Training:
             avg_loss_train = self._iterate_train(data_loader_train)
             print('Training loss:  {:f}'.format(avg_loss_train))
 
-            '''
+            
             # ========================= Validation ============================= #
+            
+            self.model.eval()
+            
+            # Batch iteration - Validation dataset
+            for batch_idx, (names, imgs, targets) in enumerate(data_loader_val):
+                    
+                # Get images and targets
+                images = torch.stack(imgs).to(self.device)
+
+                detections = self.model(images)
+                
+                print('eval')
+            '''
             precision, recall, AP, f1, ap_class = evaluate(self.model,
                                                     data_loader_val,
                                                     self.iou_thres,

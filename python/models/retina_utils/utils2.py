@@ -15,26 +15,26 @@ import numpy as np
 
 
 class BBoxTransform(nn.Module):
-
+    '''
+    Layer for applying regression values to boxes.
+    '''
     def __init__(self, mean=None, std=None):
         super(BBoxTransform, self).__init__()
+        # init mean
         if mean is None:
-            if torch.cuda.is_available():
-                self.mean = torch.from_numpy(np.array([0, 0, 0, 0]).astype(np.float32)).cuda()
-            else:
-                self.mean = torch.from_numpy(np.array([0, 0, 0, 0]).astype(np.float32))
-
+            self.mean = torch.from_numpy(np.array([0, 0, 0, 0]).astype(np.float32))
         else:
             self.mean = mean
+        # init std
         if std is None:
-            if torch.cuda.is_available():
-                self.std = torch.from_numpy(np.array([0.1, 0.1, 0.2, 0.2]).astype(np.float32)).cuda()
-            else:
-                self.std = torch.from_numpy(np.array([0.1, 0.1, 0.2, 0.2]).astype(np.float32))
+           self.std = torch.from_numpy(np.array([0.1, 0.1, 0.2, 0.2]).astype(np.float32))
         else:
             self.std = std
 
     def forward(self, boxes, deltas):
+        device = torch.device("cuda:0" if torch.cuda.is_available() and boxes.device.type == 'cuda'  else "cpu")
+        self.mean.to(device)
+        self.std.to(device)
 
         widths  = boxes[:, :, 2] - boxes[:, :, 0]
         heights = boxes[:, :, 3] - boxes[:, :, 1]
@@ -62,7 +62,9 @@ class BBoxTransform(nn.Module):
 
 
 class ClipBoxes(nn.Module):
-
+    '''
+    Layer to clip box values to lie inside a given shape.
+    '''
     def __init__(self, width=None, height=None):
         super(ClipBoxes, self).__init__()
 
