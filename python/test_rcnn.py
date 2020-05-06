@@ -20,6 +20,7 @@ from models.rcnn import FasterRCNN
 from models.yolo_utils.utils import *
 from utils.datasets import OvaryDataset, printBoudingBoxes
 
+
 def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
     """
     Removes detections with lower object confidence score than 'conf_thres' and performs
@@ -105,6 +106,7 @@ def batch_statistics(outputs, targets, iou_threshold):
                     detected_boxes += [box_index]
         batch_metrics.append([true_positives, pred_scores.cpu(), pred_labels.cpu()])
     return batch_metrics
+
 
 def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_bb=False):
     """
