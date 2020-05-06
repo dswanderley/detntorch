@@ -12,14 +12,14 @@ import torch.nn as nn
 
 try:
     from models.fpn import PyramidFeatures
-    from models.retina_utils.losses2 import FocalLoss
     from models.retina_utils.anchors import Anchors, BBoxTransform, ClipBoxes
-    from models.retina_utils.utils2 import *
+    from models.retina_utils.losses import FocalLoss
+    from models.retina_utils.utils import nms
 except:
     from fpn import PyramidFeatures
-    from retina_utils.losses2 import FocalLoss
     from retina_utils.anchors import Anchors, BBoxTransform, ClipBoxes
-    from retina_utils.utils2 import *
+    from retina_utils.losses import FocalLoss    
+    from retina_utils.utils import nms
 
 
 class ClassificationModel(nn.Module):
@@ -183,17 +183,18 @@ class RetinaNet(nn.Module):
 
             # Filter detections (apply NMS / score threshold / select top-k)
             scores = torch.max(lbl_preds, dim=2, keepdim=True)[0]
-
             scores_over_thresh = (scores > 0.05)[0, :, 0]
 
+            # no boxes to NMS, just return
             if scores_over_thresh.sum() == 0:
-                # no boxes to NMS, just return
                 return [torch.zeros(0), torch.zeros(0), torch.zeros(0, 4)]
 
+            # Get selected labeks by threshold
             lbl_preds = lbl_preds[:, scores_over_thresh, :]
             transformed_anchors = transformed_anchors[:, scores_over_thresh, :]
             scores = scores[:, scores_over_thresh, :]
-            # Apply non-maximum suppression 
+
+            # Apply non-maximum suppression
             anchors_nms_idx = nms(transformed_anchors[0,:,:], scores[0,:,0], 0.5)
             nms_scores, nms_class = lbl_preds[0, anchors_nms_idx, :].max(dim=1) # Suppress blocks
 
@@ -203,9 +204,6 @@ class RetinaNet(nn.Module):
 
 if __name__ == "__main__":
     from torch.autograd import Variable
-    from retina_utils.utils import DataEncoder
-
-    encoder = DataEncoder()
 
     in_channels = 1
     bs = 2

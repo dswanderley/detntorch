@@ -24,8 +24,6 @@ from test_rcnn import evaluate
 from models.retinanet import RetinaNet
 from utils.datasets import OvaryDataset
 from utils.helper import gettrainname
-from models.retina_utils.utils import DataEncoder
-
 
 
 class Training:
@@ -39,7 +37,6 @@ class Training:
         '''
             Training class - Constructor
         '''
-        self.encoder = DataEncoder()
         self.model = model
         self.device = device
         self.train_set = train_set
@@ -180,10 +177,11 @@ class Training:
                 images = torch.stack(imgs).to(self.device)
 
                 detections = self.model(images)
+                pred_scores, pred_class, pred_boxes = detections
 
-                #print(detections)
-                
-                print('eval')
+                if len(pred_boxes > 0):
+                    print('detection')
+
             '''
             precision, recall, AP, f1, ap_class = evaluate(self.model,
                                                     data_loader_val,
