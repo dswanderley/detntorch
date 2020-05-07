@@ -155,6 +155,7 @@ class RetinaNet(nn.Module):
     def forward(self, x, tgts=None):
         cls_preds = []
         box_preds = []
+        bs = x.shape[0]
 
         # Get Pyramid features
         features = self.fpn(x)
@@ -177,6 +178,9 @@ class RetinaNet(nn.Module):
             loss =  self.focalLoss(lbl_preds, box_preds, anchors, tgts)
             return { 'box_loss':loss[1], 'cls_los':loss[0] }
         else:
+            # Output as a list
+            detections = []
+
             # Apply predicted regression to anchors and then clip box values
             transformed_anchors = self.regressBoxes(anchors, box_preds)
             transformed_anchors = self.clipBoxes(transformed_anchors, x)
@@ -187,18 +191,25 @@ class RetinaNet(nn.Module):
 
             # no boxes to NMS, just return
             if scores_over_thresh.sum() == 0:
-                return [torch.zeros(0), torch.zeros(0), torch.zeros(0, 4)]
+                for i in range(bs):
+                    detections.append([torch.zeros(0), torch.zeros(0), torch.zeros(0, 4)])
+            else:
+                # Get selected labels by threshold
+                lbl_preds = lbl_preds[:, scores_over_thresh, :]
+                transformed_anchors = transformed_anchors[:, scores_over_thresh, :]
+                scores = scores[:, scores_over_thresh, :]
 
-            # Get selected labeks by threshold
-            lbl_preds = lbl_preds[:, scores_over_thresh, :]
-            transformed_anchors = transformed_anchors[:, scores_over_thresh, :]
-            scores = scores[:, scores_over_thresh, :]
+                # Select best candidates
+                for i in range(bs):
+                    # Apply non-maximum suppression
+                    anchors_nms_idx = nms(transformed_anchors[i,:,:], scores[i,:,0], 0.5)
+                    # Suppress blocks
+                    nms_scores, nms_class = lbl_preds[i, anchors_nms_idx, :].max(dim=1) 
+                    # Define ouput row
+                    dtn = [ nms_scores, nms_class, transformed_anchors[i, anchors_nms_idx, :] ]
+                    detections.append(dtn)
 
-            # Apply non-maximum suppression
-            anchors_nms_idx = nms(transformed_anchors[0,:,:], scores[0,:,0], 0.5)
-            nms_scores, nms_class = lbl_preds[0, anchors_nms_idx, :].max(dim=1) # Suppress blocks
-
-            return [nms_scores, nms_class, transformed_anchors[0, anchors_nms_idx, :]]
+            return detections
 
 
 
@@ -226,6 +237,6 @@ if __name__ == "__main__":
         out = net( imgs, tgts )
     else:
         net.eval()
-        detections = net( imgs )
+        _scores, _class, _boxes = detections = net( imgs )
 
     print('end')
