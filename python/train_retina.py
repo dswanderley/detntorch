@@ -20,7 +20,7 @@ from terminaltables import AsciiTable
 
 import utils.transformations as tsfrm
 
-from test_rcnn import evaluate
+from test_retina import evaluate
 from models.retinanet import RetinaNet
 from utils.datasets import OvaryDataset
 from utils.helper import gettrainname
@@ -85,7 +85,6 @@ class Training:
                         for tgt in tgts]
 
             # Forward and loss
-            
             self.optimizer.zero_grad()
             loss_dict = self.model(images, targets)
 
@@ -149,7 +148,7 @@ class Training:
         # Load Dataset
         data_loader_train = DataLoader(self.train_set, batch_size=batch_size, shuffle=True,
                                         collate_fn=self.train_set.collate_fn_rcnn)
-        data_loader_val = DataLoader(self.valid_set, batch_size=1, shuffle=False,
+        data_loader_val = DataLoader(self.valid_set, batch_size=2, shuffle=False,
                                         collate_fn=self.valid_set.collate_fn_rcnn)
 
         # Define parameters
@@ -167,29 +166,12 @@ class Training:
 
             
             # ========================= Validation ============================= #
-            
-            self.model.eval()
-            
-            # Batch iteration - Validation dataset
-            for batch_idx, (names, imgs, targets) in enumerate(data_loader_val):
-                    
-                # Get images and targets
-                images = torch.stack(imgs).to(self.device)
-
-                detections = self.model(images)
-                pred_scores, pred_class, pred_boxes = detections
-
-                if len(pred_boxes > 0):
-                    print('detection')
-
-            '''
             precision, recall, AP, f1, ap_class = evaluate(self.model,
                                                     data_loader_val,
                                                     self.iou_thres,
                                                     self.conf_thres,
                                                     self.nms_thres,
                                                     device=self.device)
-
             # Group metrics
             evaluation_metrics = [
                 ("val_precision", precision.mean()),
@@ -231,7 +213,6 @@ class Training:
                 self._logging(self.epoch, avg_loss_train, evaluation_metrics)
 
             print('Model {:s} updated!'.format(self.train_name))
-            '''
             print('\n')
 
 
@@ -245,8 +226,8 @@ if __name__ == "__main__":
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
     # Evaluation parameters
     parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
-    parser.add_argument("--conf_thres", type=float, default=0.5, help="object confidence threshold")
-    parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
+    parser.add_argument("--conf_thres", type=float, default=0.3, help="object confidence threshold")
+    parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
 
     opt = parser.parse_args()
     print(opt)
