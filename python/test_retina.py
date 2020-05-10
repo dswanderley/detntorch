@@ -122,6 +122,9 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_
 
         # Get images and targets
         images = torch.stack(imgs).to(device)
+        # Labels
+        for tgt in targets:
+            labels += tgt['labels'].tolist()
         # Set targets
         targets = [ { 'boxes':  tgt['boxes'].to(device),'labels': tgt['labels'].to(device) } 
                     for tgt in targets ]
@@ -130,6 +133,7 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_
         with torch.no_grad():
             detections = model(images) # pred_scores, pred_class, pred_boxes
             outputs = non_max_suppression(detections, conf_thres=conf_thres, nms_thres=nms_thres) # Removes detections with lower score 
+            #outputs = [ { 'boxes':boxes, 'labels':labels.float(), 'scores':scores } for scores, labels, boxes in detections ]
 
         sample_metrics += batch_statistics(outputs,
                                 targets,
