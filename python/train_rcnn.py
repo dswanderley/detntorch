@@ -33,7 +33,7 @@ class Training:
 
     def __init__(self, model, device, train_set, valid_set, optim, class_names,
                  train_name='fast_rcnn', logger=None,
-                 iou_thres=0.5, conf_thres=0.5, nms_thres=0.5):
+                 iou_thres=0.5, score_thres=0.5, nms_thres=0.5):
         '''
             Training class - Constructor
         '''
@@ -47,7 +47,7 @@ class Training:
         self.logger = logger
         self.class_names = class_names
         self.iou_thres = iou_thres
-        self.conf_thres = conf_thres
+        self.score_thres = score_thres
         self.nms_thres = nms_thres
         self.epoch = 0
 
@@ -188,7 +188,7 @@ class Training:
             precision, recall, AP, f1, ap_class = evaluate(self.model,
                                                     data_loader_val,
                                                     self.iou_thres,
-                                                    self.conf_thres,
+                                                    self.score_thres,
                                                     self.nms_thres,
                                                     device=self.device)
 
@@ -228,7 +228,10 @@ class Training:
                 'batch_size': batch_size,
                 'optimizer': str(self.optimizer),
                 'optimizer_dict': self.optimizer.state_dict(),
-                'device': str(self.device)
+                'device': str(self.device),
+                'iou_thres': self.iou_thres,
+                'score_thres': self.score_thres,
+                'nms_thres': self.nms_thres
                 })
 
             # ====================== Tensorboard Logging ======================= #
@@ -249,8 +252,8 @@ if __name__ == "__main__":
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
     # Evaluation parameters
     parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
-    parser.add_argument("--conf_thres", type=float, default=0.5, help="object confidence threshold")
-    parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
+    parser.add_argument("--score_thres", type=float, default=0.4, help="object score threshold")
+    parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
 
     opt = parser.parse_args()
     print(opt)
@@ -307,7 +310,7 @@ if __name__ == "__main__":
                         class_names=cls_names[:2],
                         train_name=train_name,
                         iou_thres=opt.iou_thres,
-                        conf_thres=opt.conf_thres,
+                        score_thres=opt.score_thres,
                         nms_thres=opt.nms_thres)
     training.train(epochs=n_epochs, batch_size=batch_size)
 

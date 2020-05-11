@@ -91,11 +91,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Network parameters
     parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
-    parser.add_argument("--weights_path", type=str, default="../weights/20200324_2047_Yolo_v3_weights.pth.tar", help="path to weights file")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200419_1419_yolov3_weights.pth.tar", help="path to weights file")
     parser.add_argument("--model_name", type=str, default="yolov3.cfg", help="newtork model file")
     # Evaluation parameters
     parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
-    parser.add_argument("--conf_thres", type=float, default=0.001, help="object confidence threshold")
+    parser.add_argument("--conf_thres", type=float, default=0.01, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
     parser.add_argument("--save_img", type=bool, default=False, help="save images with bouding box")
 

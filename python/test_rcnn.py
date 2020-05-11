@@ -21,9 +21,9 @@ from models.yolo_utils.utils import *
 from utils.datasets import OvaryDataset, printBoudingBoxes
 
 
-def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
+def non_max_suppression(prediction, score_thres=0.5, nms_thres=0.4):
     """
-    Removes detections with lower object confidence score than 'conf_thres' and performs
+    Removes detections with lower object confidence score than 'score_thres' and performs
     Non-Maximum Suppression to further filter detections.
     Returns detections with shape:
         (x1, y1, x2, y2, score, class_pred)
@@ -35,7 +35,7 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
         scores = pred['scores'].unsqueeze(1)
         image_pred = torch.cat((boxes, scores, labels.float()), 1)
         # Filter out confidence scores below threshold
-        image_pred = image_pred[image_pred[:, 4] >= conf_thres]
+        image_pred = image_pred[image_pred[:, 4] >= score_thres]
         # If none are remaining => process next image
         if not image_pred.size(0):
             continue
@@ -108,7 +108,7 @@ def batch_statistics(outputs, targets, iou_threshold):
     return batch_metrics
 
 
-def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_bb=False):
+def evaluate(model, data_loader, iou_thres, score_thres, nms_thres, device, save_bb=False):
     """
         Evaluate model
     """
@@ -134,7 +134,7 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_
         # Run prediction
         with torch.no_grad():
             outputs = model(images)
-            outputs = non_max_suppression(outputs, conf_thres=conf_thres, nms_thres=nms_thres) # Removes detections with lower score
+            outputs = non_max_suppression(outputs, score_thres=score_thres, nms_thres=nms_thres) # Removes detections with lower score
 
         sample_metrics += batch_statistics(outputs,
                                 targets,
@@ -177,10 +177,10 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
     parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
-    parser.add_argument("--weights_path", type=str, default="../weights/20200411_1938_faster_rcnn_weights.pth.tar", help="path to weights file")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200419_1604_faster_rcnn_weights.pth.tar", help="path to weights file")
     # Evaluation parameters
     parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
-    parser.add_argument("--conf_thres", type=float, default=0.001, help="object confidence threshold")
+    parser.add_argument("--score_thres", type=float, default=0.05, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
     parser.add_argument("--save_img", type=bool, default=False, help="save images with bouding box")
 
@@ -219,7 +219,7 @@ if __name__ == "__main__":
     precision, recall, AP, f1, ap_class  = evaluate(model,
                                                 data_loader,
                                                 opt.iou_thres,
-                                                opt.conf_thres,
+                                                opt.score_thres,
                                                 opt.nms_thres,
                                                 device,
                                                 save_bb=opt.save_img)

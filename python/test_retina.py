@@ -21,9 +21,9 @@ from models.yolo_utils.utils import *
 from utils.datasets import OvaryDataset, printBoudingBoxes
 
 
-def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
+def non_max_suppression(prediction, score_thres=0.05, nms_thres=0.4):
     """
-    Removes detections with lower object confidence score than 'conf_thres' and performs
+    Removes detections with lower object confidence score than 'score_thres' and performs
     Non-Maximum Suppression to further filter detections.
     Returns detections with shape:
         (x1, y1, x2, y2, score, class_pred)
@@ -33,7 +33,7 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
     for image_i, (scores, labels, boxes) in enumerate(prediction):
         image_pred = torch.cat((boxes, scores.unsqueeze(1), labels.unsqueeze(1).float()), 1)
         # Filter out confidence scores below threshold
-        image_pred = image_pred[image_pred[:, 4] >= conf_thres]
+        image_pred = image_pred[image_pred[:, 4] >= score_thres]
         # If none are remaining => process next image
         if not image_pred.size(0):
             continue
@@ -127,7 +127,7 @@ def apply_score_threshold(detections, threshold=0.3):
     return output
 
 
-def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_bb=False):
+def evaluate(model, data_loader, iou_thres, score_thres, nms_thres, device, save_bb=False):
     """
         Evaluate model
     """
@@ -153,9 +153,9 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_
         # Run prediction 
         with torch.no_grad():
             detections = model(images) # pred_scores, pred_class, pred_boxes
-            outputs = non_max_suppression(detections, conf_thres=conf_thres, nms_thres=nms_thres) # Removes detections with lower score 
+            outputs = non_max_suppression(detections, score_thres=score_thres, nms_thres=nms_thres) # Removes detections with lower score 
             # outputs = [ { 'boxes':boxes, 'labels':labels.float(), 'scores':scores } for scores, labels, boxes in detections ]
-            # outputs = apply_score_threshold(detections, threshold=conf_thres)
+            # outputs = apply_score_threshold(detections, threshold=score_thres)
 
         sample_metrics += batch_statistics(outputs,
                                 targets,
@@ -200,9 +200,9 @@ if __name__ == "__main__":
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
     parser.add_argument("--weights_path", type=str, default="../weights/20200510_2120_retinanet_weights.pth.tar", help="path to weights file")
     # Evaluation parameters
-    parser.add_argument("--iou_thres", type=float, default=0.3, help="iou threshold required to qualify as detected")
-    parser.add_argument("--conf_thres", type=float, default=0.3, help="object confidence threshold")
-    parser.add_argument("--nms_thres", type=float, default=0.3, help="iou thresshold for non-maximum suppression")
+    parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
+    parser.add_argument("--score_thres", type=float, default=0.05, help="object confidence threshold")
+    parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
     parser.add_argument("--save_img", type=bool, default=False, help="save images with bouding box")
 
     opt = parser.parse_args()
@@ -241,7 +241,7 @@ if __name__ == "__main__":
     precision, recall, AP, f1, ap_class  = evaluate(model,
                                                 data_loader,
                                                 opt.iou_thres,
-                                                opt.conf_thres,
+                                                opt.score_thres,
                                                 opt.nms_thres,
                                                 device,
                                                 save_bb=opt.save_img)

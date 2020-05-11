@@ -40,8 +40,8 @@ if __name__ == "__main__":
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
     parser.add_argument("--weights_path", type=str, default="../weights/20200511_1817_retinanet_weights.pth.tar", help="path to weights file")
     # Evaluation parameters
-    parser.add_argument("--conf_thres", type=float, default=0.3, help="object confidence threshold")
-    parser.add_argument("--nms_thres", type=float, default=0.3, help="iou thresshold for non-maximum suppression")
+    parser.add_argument("--score_thres", type=float, default=0.5, help="object confidence threshold")
+    parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
     parser.add_argument("--save_img", type=bool, default=False, help="save images with bouding box")
 
     opt = parser.parse_args()
@@ -103,7 +103,7 @@ if __name__ == "__main__":
         # Get detections
         with torch.no_grad():
             detections = model(images)
-            detections = non_max_suppression(detections, opt.conf_thres, opt.nms_thres) # Removes detections with lower score 
+            detections = non_max_suppression(detections, opt.score_thres, opt.nms_thres) # Removes detections with lower score 
 
         # Log progress
         current_time = time.time()

@@ -236,7 +236,10 @@ class Training:
                         'optimizer': str(self.optimizer),
                         'optimizer_dict': self.optimizer.state_dict(),
                         'device': str(self.device),
-                        'avg_metrics': self.avg_metrics
+                        'avg_metrics': self.avg_metrics,
+                        'iou_thres': self.iou_thres,
+                        'conf_thres': self.conf_thres,
+                        'nms_thres': self.nms_thres
                     },
                     log=log_str )
 
@@ -257,8 +260,8 @@ if __name__ == "__main__":
     parser.add_argument("--model_name", type=str, default="yolov3-tiny_fol", help="name of the model definition, used to load the config. file,")
     # Evaluation parameters
     parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
-    parser.add_argument("--conf_thres", type=float, default=0.5, help="object confidence threshold")
-    parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
+    parser.add_argument("--score_thres", type=float, default=0.5, help="object confidence threshold")
+    parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
 
     opt = parser.parse_args()
     print(opt)
