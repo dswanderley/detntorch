@@ -148,7 +148,7 @@ class Training:
         # Load Dataset
         data_loader_train = DataLoader(self.train_set, batch_size=batch_size, shuffle=True,
                                         collate_fn=self.train_set.collate_fn_rcnn)
-        data_loader_val = DataLoader(self.valid_set, batch_size=2, shuffle=False,
+        data_loader_val = DataLoader(self.valid_set, batch_size=1, shuffle=False,
                                         collate_fn=self.valid_set.collate_fn_rcnn)
 
         # Define parameters
@@ -207,13 +207,14 @@ class Training:
                 'optimizer_dict': self.optimizer.state_dict(),
                 'device': str(self.device)
                 })
+                
+                print('Model {:s} updated!'.format(self.train_name))
+                print('\n')
 
             # ====================== Tensorboard Logging ======================= #
             if self.logger:
                 self._logging(self.epoch, avg_loss_train, evaluation_metrics)
 
-            print('Model {:s} updated!'.format(self.train_name))
-            print('\n')
 
 
 if __name__ == "__main__":
@@ -225,7 +226,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
     # Evaluation parameters
-    parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
+    parser.add_argument("--iou_thres", type=float, default=0.3, help="iou threshold required to qualify as detected")
     parser.add_argument("--conf_thres", type=float, default=0.3, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
 
