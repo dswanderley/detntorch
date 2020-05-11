@@ -153,9 +153,9 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_
         # Run prediction 
         with torch.no_grad():
             detections = model(images) # pred_scores, pred_class, pred_boxes
-            # outputs = non_max_suppression(detections, conf_thres=conf_thres, nms_thres=nms_thres) # Removes detections with lower score 
+            outputs = non_max_suppression(detections, conf_thres=conf_thres, nms_thres=nms_thres) # Removes detections with lower score 
             # outputs = [ { 'boxes':boxes, 'labels':labels.float(), 'scores':scores } for scores, labels, boxes in detections ]
-        outputs = apply_score_threshold(detections, threshold=conf_thres)
+            # outputs = apply_score_threshold(detections, threshold=conf_thres)
 
         sample_metrics += batch_statistics(outputs,
                                 targets,
