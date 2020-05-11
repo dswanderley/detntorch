@@ -106,6 +106,27 @@ def batch_statistics(outputs, targets, iou_threshold):
     return batch_metrics
 
 
+def apply_score_threshold(detections, threshold=0.3):
+    
+    output = [ { 'boxes':None, 'labels':None, 'scores':None } for _ in range( len(detections) ) ]
+
+    for idx, (scores, labels, boxes) in enumerate(detections):
+        s = [] 
+        l = []
+        b = []
+        for i in range(len(scores)):
+            if scores[i] > threshold:
+                s.append(scores[i])
+                l.append(labels[i])
+                b.append(boxes[i])
+        if len(s) > 0:
+            output[idx]['boxes'] = torch.stack(b)
+            output[idx]['labels'] = torch.stack(l).float()
+            output[idx]['scores'] = torch.stack(s)
+
+    return output
+
+
 def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_bb=False):
     """
         Evaluate model
@@ -132,8 +153,9 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_
         # Run prediction 
         with torch.no_grad():
             detections = model(images) # pred_scores, pred_class, pred_boxes
-            outputs = non_max_suppression(detections, conf_thres=conf_thres, nms_thres=nms_thres) # Removes detections with lower score 
-            #outputs = [ { 'boxes':boxes, 'labels':labels.float(), 'scores':scores } for scores, labels, boxes in detections ]
+            # outputs = non_max_suppression(detections, conf_thres=conf_thres, nms_thres=nms_thres) # Removes detections with lower score 
+            # outputs = [ { 'boxes':boxes, 'labels':labels.float(), 'scores':scores } for scores, labels, boxes in detections ]
+        outputs = apply_score_threshold(detections, threshold=conf_thres)
 
         sample_metrics += batch_statistics(outputs,
                                 targets,
@@ -178,9 +200,9 @@ if __name__ == "__main__":
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
     parser.add_argument("--weights_path", type=str, default="../weights/20200510_2120_retinanet_weights.pth.tar", help="path to weights file")
     # Evaluation parameters
-    parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
-    parser.add_argument("--conf_thres", type=float, default=0.001, help="object confidence threshold")
-    parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
+    parser.add_argument("--iou_thres", type=float, default=0.3, help="iou threshold required to qualify as detected")
+    parser.add_argument("--conf_thres", type=float, default=0.3, help="object confidence threshold")
+    parser.add_argument("--nms_thres", type=float, default=0.3, help="iou thresshold for non-maximum suppression")
     parser.add_argument("--save_img", type=bool, default=False, help="save images with bouding box")
 
     opt = parser.parse_args()
@@ -191,7 +213,7 @@ if __name__ == "__main__":
 
     # Get data configuration
     n_classes = opt.num_classes
-    weights_path  = None#opt.weights_path
+    weights_path  = opt.weights_path
 
     # Dataset
     dataset = OvaryDataset(im_dir='../datasets/ovarian/im/test/',
