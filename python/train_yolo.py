@@ -134,7 +134,7 @@ class Training:
 
         # 1. Log scalar values (scalar summary)
         info = val_evaluation
-        info.append(('train_lotal_loss', avg_loss_train))
+        info.append(('train_loss_total', avg_loss_train))
         for tag, value in info:
             self.logger.add_scalar(tag, value, epoch+1)
         
@@ -227,8 +227,7 @@ class Training:
                 self._saveweights({
                         'epoch': self.epoch + 1,
                         'state_dict': self.model.state_dict(),
-                        'best_loss_train': best_loss,
-                        'best_ap_val': best_ap,
+                        'train_loss_total': best_loss,
                         'val_precision': precision.mean(),
                         'val_recall': recall.mean(),
                         'val_mAP': AP.mean(),
