@@ -202,7 +202,7 @@ class RetinaNet(nn.Module):
                 # Select best candidates
                 for i in range(bs):
                     # Apply non-maximum suppression
-                    anchors_nms_idx = nms(transformed_anchors[i,:,:], scores[i,:,0], 0.5)
+                    #anchors_nms_idx = nms(transformed_anchors[i,:,:], scores[i,:,0], 0.5)
                     # Suppress blocks
                     #nms_scores, nms_class = lbl_preds[i, anchors_nms_idx, :].max(dim=1) 
                     nms_scores, nms_class = lbl_preds[i].max(dim=1) 
