@@ -67,6 +67,8 @@ class Training:
 
         # Init loss count
         loss_train_sum = 0
+        loss_cls_sum = 0
+        loss_box_sum = 0
         data_train_len = len(self.train_set)
 
         # Active train
@@ -102,20 +104,21 @@ class Training:
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.1)
             self.optimizer.step()
 
-        print('Epoch: {} | Iteration: {} | Classification loss: {:1.5f} | Regression loss: {:1.5f} | Running loss: {:1.5f}'.format(
-                self.epoch , batch_idx, 
-                float(loss_dict['cls_los'].item()), 
-                float(loss_dict['box_loss'].item()), 
-                loss_value) )
+            # Sum ponderated batch loss 
+            loss_train_sum += loss_value * batch_size / data_train_len
+            loss_cls_sum   += float(loss_dict['cls_los'].item()) * batch_size / data_train_len
+            loss_box_sum   += float(loss_dict['box_loss'].item()) * batch_size / data_train_len
 
-        return loss_value
+        return loss_train_sum, loss_cls_sum, loss_box_sum
 
 
-    def _logging(self, epoch, avg_loss_train, val_evaluation):
+    def _logging(self, epoch, focal_loss_train, cls_loss_train, box_loss_train, val_evaluation):
 
         # 1. Log scalar values (scalar summary)
         info = val_evaluation
-        info.append(('train_avg_loss', avg_loss_train))
+        info.append(('train_focal_loss', focal_loss_train))
+        info.append(('train_cls_loss', cls_loss_train))
+        info.append(('train_box_loss', box_loss_train))
         for tag, value in info:
             self.logger.add_scalar(tag, value, epoch+1)
 
@@ -161,7 +164,7 @@ class Training:
             print('Starting epoch {}/{}.'.format(self.epoch + 1, epochs))
 
             # ========================= Training =============================== #
-            avg_loss_train = self._iterate_train(data_loader_train)
+            avg_loss_train, loss_cls_train, loss_box_train = self._iterate_train(data_loader_train)
             print('Training loss:  {:f}'.format(avg_loss_train))
 
             
@@ -196,8 +199,10 @@ class Training:
                 self._saveweights({
                 'epoch': self.epoch + 1,
                 'state_dict': self.model.state_dict(),
-                'best_loss_train': best_loss,
-                'best_ap_val': best_ap,
+                'train_focal_loss': best_loss,
+                'train_box_loss': loss_box_train,
+                'train_cls_loss': loss_cls_train,
+                'val_best_ap': best_ap,
                 'val_precision': precision.mean(),
                 'val_recall': recall.mean(),
                 'val_mAP': AP.mean(),
@@ -213,7 +218,7 @@ class Training:
 
             # ====================== Tensorboard Logging ======================= #
             if self.logger:
-                self._logging(self.epoch, avg_loss_train, evaluation_metrics)
+                self._logging(self.epoch, avg_loss_train, loss_cls_train, loss_box_train, evaluation_metrics)
 
 
 

@@ -67,6 +67,10 @@ class Training:
 
         # Init loss count
         loss_train_sum = 0
+        loss_classifier = 0
+        loss_box_reg = 0
+        loss_objectness = 0
+        loss_rpn_box_reg = 0
         data_train_len = len(self.train_set)
 
         # Active train
@@ -77,12 +81,13 @@ class Training:
         for batch_idx, (names, imgs, targets) in enumerate(tqdm(data_loader, desc="Training epoch")):
             batches_done = len(data_loader) * self.epoch + batch_idx
 
-            # Get images and targets
+            # Get images
             if self.model.num_channels == 3:
                 images = [img.to(self.device) for img in imgs]
             else:
                 images = torch.stack(imgs).to(self.device)
-
+            batch_size = len(images)
+            # Get targerts
             targets = [{ 'boxes':  tgt['boxes'].to(self.device),'labels': tgt['labels'].to(self.device) } 
                         for tgt in targets]
 
@@ -109,14 +114,27 @@ class Training:
             losses.backward()
             self.optimizer.step()
 
-        return loss_value
+            # Sum ponderated batch loss 
+            loss_train_sum   += loss_value * batch_size / data_train_len
+            loss_classifier  += loss_dict['loss_classifier'].item() * batch_size / data_train_len
+            loss_box_reg     += loss_dict['loss_box_reg'].item() * batch_size / data_train_len
+            loss_objectness  += loss_dict['loss_objectness'].item() * batch_size / data_train_len
+            loss_rpn_box_reg += loss_dict['loss_rpn_box_reg'].item() * batch_size / data_train_len
+
+        loss_dict_sum = { 'loss_classifier': loss_classifier,
+                        'loss_box_reg': loss_box_reg,
+                        'loss_objectness': loss_objectness,
+                        'loss_rpn_box_reg': loss_rpn_box_reg
+                        }
+
+        return loss_train_sum, loss_dict_sum
 
 
     def _logging(self, epoch, avg_loss_train, val_evaluation):
 
         # 1. Log scalar values (scalar summary)
         info = val_evaluation
-        info.append(('train_avg_loss', avg_loss_train))
+        info.append(('train_loss_sum', avg_loss_train))
         for tag, value in info:
             self.logger.add_scalar(tag, value, epoch+1)
         
@@ -162,7 +180,7 @@ class Training:
             print('Starting epoch {}/{}.'.format(self.epoch + 1, epochs))
 
             # ========================= Training =============================== #
-            avg_loss_train = self._iterate_train(data_loader_train)
+            avg_loss_train, loss_dict_train = self._iterate_train(data_loader_train)
             print('Training loss:  {:f}'.format(avg_loss_train))
             
 
@@ -198,8 +216,11 @@ class Training:
                 self._saveweights({
                 'epoch': self.epoch + 1,
                 'state_dict': self.model.state_dict(),
-                'best_loss_train': best_loss,
-                'best_ap_val': best_ap,
+                'train_loss_sum': best_loss,
+                'train_loss_classifier': loss_dict_train['loss_classifier'],
+                'train_loss_box_reg': loss_dict_train['loss_box_reg'],
+                'train_loss_objectness': loss_dict_train['loss_objectness'],
+                'train_loss_rpn_box_reg': loss_dict_train['loss_rpn_box_reg'],
                 'val_precision': precision.mean(),
                 'val_recall': recall.mean(),
                 'val_mAP': AP.mean(),
