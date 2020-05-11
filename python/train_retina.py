@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Nov 11 22:03:15 2019
+Created on Sat Apr 02 13:10:11 2019
 @author: Diego Wanderley
 @python: 3.6
-@description: Train script for fast r-cnn
+@description: Train script for RetinaNet.
 """
 
 import sys
@@ -20,10 +20,10 @@ from terminaltables import AsciiTable
 
 import utils.transformations as tsfrm
 
-from test_rcnn import evaluate
-from models.rcnn import FasterRCNN
+from test_retina import evaluate
+from models.retinanet import RetinaNet
 from utils.datasets import OvaryDataset
-from utils.helper import reduce_dict, gettrainname
+from utils.helper import gettrainname
 
 
 class Training:
@@ -32,7 +32,7 @@ class Training:
     """
 
     def __init__(self, model, device, train_set, valid_set, optim, class_names,
-                 train_name='fast_rcnn', logger=None,
+                 train_name='retinanet', logger=None,
                  iou_thres=0.5, conf_thres=0.5, nms_thres=0.5):
         '''
             Training class - Constructor
@@ -67,74 +67,58 @@ class Training:
 
         # Init loss count
         loss_train_sum = 0
-        loss_classifier = 0
-        loss_box_reg = 0
-        loss_objectness = 0
-        loss_rpn_box_reg = 0
+        loss_cls_sum = 0
+        loss_box_sum = 0
         data_train_len = len(self.train_set)
 
         # Active train
         self.model.train()
-        self.model = self.model.to(self.device)
+        self.model.freeze_bn()
 
         # Batch iteration - Training dataset
-        for batch_idx, (names, imgs, targets) in enumerate(tqdm(data_loader, desc="Training epoch")):
+        for batch_idx, (names, imgs, tgts) in enumerate(tqdm(data_loader, desc="Training epoch")):
             batches_done = len(data_loader) * self.epoch + batch_idx
 
-            # Get images
-            if self.model.num_channels == 3:
-                images = [img.to(self.device) for img in imgs]
-            else:
-                images = torch.stack(imgs).to(self.device)
-            batch_size = len(images)
-            # Get targerts
+            # Get images and targets
+            images = torch.stack(imgs).to(self.device)
+            
+            # Set targets
             targets = [{ 'boxes':  tgt['boxes'].to(self.device),'labels': tgt['labels'].to(self.device) } 
-                        for tgt in targets]
+                        for tgt in tgts]
 
             # Forward and loss
+            self.optimizer.zero_grad()
             loss_dict = self.model(images, targets)
 
             # Compute loss
             losses = sum(loss for loss in loss_dict.values())
-
-            # reduce losses over all GPUs for logging purposes
-            loss_dict_reduced = reduce_dict(loss_dict)
-            losses_reduced = sum(loss for loss in loss_dict_reduced.values())
-
-            loss_value = losses_reduced.item()
+            loss_value = losses.item()
 
             # Test if valid to continue
             if not math.isfinite(loss_value):
                 print("Loss is {}, stopping training".format(loss_value))
-                print(loss_dict_reduced)
                 sys.exit(1)
 
             # Backpropagation
-            self.optimizer.zero_grad()
             losses.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.1)
             self.optimizer.step()
 
             # Sum ponderated batch loss 
-            loss_train_sum   += loss_value * batch_size / data_train_len
-            loss_classifier  += loss_dict['loss_classifier'].item() * batch_size / data_train_len
-            loss_box_reg     += loss_dict['loss_box_reg'].item() * batch_size / data_train_len
-            loss_objectness  += loss_dict['loss_objectness'].item() * batch_size / data_train_len
-            loss_rpn_box_reg += loss_dict['loss_rpn_box_reg'].item() * batch_size / data_train_len
+            loss_train_sum += loss_value * batch_size / data_train_len
+            loss_cls_sum   += float(loss_dict['cls_los'].item()) * batch_size / data_train_len
+            loss_box_sum   += float(loss_dict['box_loss'].item()) * batch_size / data_train_len
 
-        loss_dict_sum = { 'loss_classifier': loss_classifier,
-                        'loss_box_reg': loss_box_reg,
-                        'loss_objectness': loss_objectness,
-                        'loss_rpn_box_reg': loss_rpn_box_reg
-                        }
-
-        return loss_train_sum, loss_dict_sum
+        return loss_train_sum, loss_cls_sum, loss_box_sum
 
 
-    def _logging(self, epoch, avg_loss_train, val_evaluation):
+    def _logging(self, epoch, focal_loss_train, cls_loss_train, box_loss_train, val_evaluation):
 
         # 1. Log scalar values (scalar summary)
         info = val_evaluation
-        info.append(('train_loss_sum', avg_loss_train))
+        info.append(('train_focal_loss', focal_loss_train))
+        info.append(('train_cls_loss', cls_loss_train))
+        info.append(('train_box_loss', box_loss_train))
         for tag, value in info:
             self.logger.add_scalar(tag, value, epoch+1)
 
@@ -180,10 +164,10 @@ class Training:
             print('Starting epoch {}/{}.'.format(self.epoch + 1, epochs))
 
             # ========================= Training =============================== #
-            avg_loss_train, loss_dict_train = self._iterate_train(data_loader_train)
+            avg_loss_train, loss_cls_train, loss_box_train = self._iterate_train(data_loader_train)
             print('Training loss:  {:f}'.format(avg_loss_train))
 
-
+            
             # ========================= Validation ============================= #
             precision, recall, AP, f1, ap_class = evaluate(self.model,
                                                     data_loader_val,
@@ -191,7 +175,6 @@ class Training:
                                                     self.conf_thres,
                                                     self.nms_thres,
                                                     device=self.device)
-
             # Group metrics
             evaluation_metrics = [
                 ("val_precision", precision.mean()),
@@ -207,7 +190,7 @@ class Training:
             print(AsciiTable(ap_table).table)
             print("mAP: "+ str(AP.mean()))
             print('\n')
-
+            
             # ======================== Save weights ============================ #
             if (avg_loss_train <= best_loss) and (AP.mean() >= best_ap):
                 best_loss = avg_loss_train
@@ -216,11 +199,10 @@ class Training:
                 self._saveweights({
                 'epoch': self.epoch + 1,
                 'state_dict': self.model.state_dict(),
-                'train_loss_sum': best_loss,
-                'train_loss_classifier': loss_dict_train['loss_classifier'],
-                'train_loss_box_reg': loss_dict_train['loss_box_reg'],
-                'train_loss_objectness': loss_dict_train['loss_objectness'],
-                'train_loss_rpn_box_reg': loss_dict_train['loss_rpn_box_reg'],
+                'train_focal_loss': best_loss,
+                'train_box_loss': loss_box_train,
+                'train_cls_loss': loss_cls_train,
+                'val_best_ap': best_ap,
                 'val_precision': precision.mean(),
                 'val_recall': recall.mean(),
                 'val_mAP': AP.mean(),
@@ -230,13 +212,14 @@ class Training:
                 'optimizer_dict': self.optimizer.state_dict(),
                 'device': str(self.device)
                 })
+                
+                print('Model {:s} updated!'.format(self.train_name))
+                print('\n')
 
             # ====================== Tensorboard Logging ======================= #
             if self.logger:
-                self._logging(self.epoch, avg_loss_train, evaluation_metrics)
+                self._logging(self.epoch, avg_loss_train, loss_cls_train, loss_box_train, evaluation_metrics)
 
-            print('Model {:s} updated!'.format(self.train_name))
-            print('\n')
 
 
 if __name__ == "__main__":
@@ -248,9 +231,9 @@ if __name__ == "__main__":
     parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
     # Evaluation parameters
-    parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
-    parser.add_argument("--conf_thres", type=float, default=0.5, help="object confidence threshold")
-    parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
+    parser.add_argument("--iou_thres", type=float, default=0.3, help="iou threshold required to qualify as detected")
+    parser.add_argument("--conf_thres", type=float, default=0.3, help="object confidence threshold")
+    parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
 
     opt = parser.parse_args()
     print(opt)
@@ -263,14 +246,15 @@ if __name__ == "__main__":
     n_epochs = opt.num_epochs
     batch_size = opt.batch_size
     input_channels = opt.num_channels
-    network_name = 'faster_rcnn'
+    network_name = 'retinanet'
     train_name = gettrainname(network_name)
 
     # Load CUDA if exist
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Load network model
-    model = FasterRCNN(num_channels=input_channels, num_classes=n_classes, pretrained=True).to(device)
+    model = RetinaNet(in_channels=input_channels, num_classes=n_classes, pretrained=True).to(device)
+    #model = torch.nn.DataParallel(model).to(device)
 
     # Transformation parameters
     transform = tsfrm.Compose([tsfrm.RandomHorizontalFlip(p=0.5),
@@ -292,9 +276,9 @@ if __name__ == "__main__":
                            out_tuple=True)
 
     # Optmization
-    #optimizer = optim.Adam(model.parameters(), lr=0.001)
-    optimizer = optim.SGD(model.parameters(), lr=0.005,
-                                momentum=0.9, weight_decay=0.0005)
+    optimizer = optim.Adam(model.parameters(), lr=1e-5)
+    #optimizer = optim.SGD(model.parameters(), lr=0.005,
+    #                            momentum=0.9, weight_decay=0.0005)
 
     # Set logs folder
     log_dir = '../logs/' + train_name + '/'

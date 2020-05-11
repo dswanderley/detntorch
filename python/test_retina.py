@@ -3,7 +3,7 @@
 Created on Thu Oct 24 19:23:12 2019
 @author: Diego Wanderley
 @python: 3.6
-@description: Test script with evaluate function.
+@description: Test script with evaluate function for retinanet.
 """
 
 import torch
@@ -16,7 +16,7 @@ from torch.autograd import Variable
 from tqdm import tqdm
 from PIL import Image
 
-from models.rcnn import FasterRCNN
+from models.retinanet import RetinaNet
 from models.yolo_utils.utils import *
 from utils.datasets import OvaryDataset, printBoudingBoxes
 
@@ -28,12 +28,10 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
     Returns detections with shape:
         (x1, y1, x2, y2, score, class_pred)
     """
-    output = [{'boxes':None, 'labels':None, 'scores':None} for _ in range(len(prediction))]
-    for image_i, pred in enumerate(prediction):
-        boxes = pred['boxes']
-        labels = pred['labels'].unsqueeze(1)
-        scores = pred['scores'].unsqueeze(1)
-        image_pred = torch.cat((boxes, scores, labels.float()), 1)
+    output = [ { 'boxes':None, 'labels':None, 'scores':None } for _ in range( len(prediction) ) ]
+    # Iterate
+    for image_i, (scores, labels, boxes) in enumerate(prediction):
+        image_pred = torch.cat((boxes, scores.unsqueeze(1), labels.unsqueeze(1).float()), 1)
         # Filter out confidence scores below threshold
         image_pred = image_pred[image_pred[:, 4] >= conf_thres]
         # If none are remaining => process next image
@@ -77,7 +75,7 @@ def batch_statistics(outputs, targets, iou_threshold):
             continue
 
         output = outputs[sample_i]
-        pred_boxes = output['boxes']
+        pred_boxes = output['boxes'] 
         pred_scores = output['scores'] if len(output['scores'].shape) == 1 else output['scores'][:,0]
         pred_labels = output['labels'] if len(output['labels'].shape) == 1 else output['labels'][:,0]
 
@@ -89,7 +87,7 @@ def batch_statistics(outputs, targets, iou_threshold):
 
         if len(target_boxes):
             detected_boxes = []
-
+            
             for pred_i, (pred_box, pred_label) in enumerate(zip(pred_boxes, pred_labels)):
 
                 # If targets are found break
@@ -106,6 +104,27 @@ def batch_statistics(outputs, targets, iou_threshold):
                     detected_boxes += [box_index]
         batch_metrics.append([true_positives, pred_scores.cpu(), pred_labels.cpu()])
     return batch_metrics
+
+
+def apply_score_threshold(detections, threshold=0.3):
+    
+    output = [ { 'boxes':None, 'labels':None, 'scores':None } for _ in range( len(detections) ) ]
+
+    for idx, (scores, labels, boxes) in enumerate(detections):
+        s = [] 
+        l = []
+        b = []
+        for i in range(len(scores)):
+            if scores[i] > threshold:
+                s.append(scores[i])
+                l.append(labels[i])
+                b.append(boxes[i])
+        if len(s) > 0:
+            output[idx]['boxes'] = torch.stack(b)
+            output[idx]['labels'] = torch.stack(l).float()
+            output[idx]['scores'] = torch.stack(s)
+
+    return output
 
 
 def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_bb=False):
@@ -127,14 +146,16 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_
         # Labels
         for tgt in targets:
             labels += tgt['labels'].tolist()
-        # Targets
-        targets = [{ 'boxes':  tgt['boxes'].to(device),'labels': tgt['labels'].to(device) }
-                    for tgt in targets]
+        # Set targets
+        targets = [ { 'boxes':  tgt['boxes'].to(device),'labels': tgt['labels'].to(device) } 
+                    for tgt in targets ]
 
-        # Run prediction
+        # Run prediction 
         with torch.no_grad():
-            outputs = model(images)
-            outputs = non_max_suppression(outputs, conf_thres=conf_thres, nms_thres=nms_thres) # Removes detections with lower score
+            detections = model(images) # pred_scores, pred_class, pred_boxes
+            outputs = non_max_suppression(detections, conf_thres=conf_thres, nms_thres=nms_thres) # Removes detections with lower score 
+            # outputs = [ { 'boxes':boxes, 'labels':labels.float(), 'scores':scores } for scores, labels, boxes in detections ]
+            # outputs = apply_score_threshold(detections, threshold=conf_thres)
 
         sample_metrics += batch_statistics(outputs,
                                 targets,
@@ -147,8 +168,8 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_
                 im = imgs[i]
                 out_bb = outputs[i]
                 # Get RGB image with BB
-                im_np = printBoudingBoxes(im, out_bb['boxes'],
-                                            lbl=out_bb['labels'],
+                im_np = printBoudingBoxes(im, out_bb['boxes'], 
+                                            lbl=out_bb['labels'], 
                                             score=out_bb['scores'])
                 # Save image
                 Image.fromarray((255*im_np).astype(np.uint8)).save('../predictions/faster_rcnn/' + im_name)
@@ -169,7 +190,7 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_
 
 
 if __name__ == "__main__":
-
+    
     from terminaltables import AsciiTable
 
     parser = argparse.ArgumentParser()
@@ -177,16 +198,16 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
     parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
-    parser.add_argument("--weights_path", type=str, default="../weights/20200411_1938_faster_rcnn_weights.pth.tar", help="path to weights file")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200510_2120_retinanet_weights.pth.tar", help="path to weights file")
     # Evaluation parameters
-    parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
-    parser.add_argument("--conf_thres", type=float, default=0.001, help="object confidence threshold")
-    parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
+    parser.add_argument("--iou_thres", type=float, default=0.3, help="iou threshold required to qualify as detected")
+    parser.add_argument("--conf_thres", type=float, default=0.3, help="object confidence threshold")
+    parser.add_argument("--nms_thres", type=float, default=0.3, help="iou thresshold for non-maximum suppression")
     parser.add_argument("--save_img", type=bool, default=False, help="save images with bouding box")
 
     opt = parser.parse_args()
     print(opt)
-
+    
     # Classes names
     class_names = ['background','follicle','ovary']
 
@@ -209,7 +230,8 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Initiate model
-    model = FasterRCNN(num_channels=opt.num_channels, num_classes=n_classes, pretrained=True).to(device)
+    model = RetinaNet(in_channels=opt.num_channels, num_classes=n_classes, pretrained=True).to(device)
+
     if weights_path is not None:
         # Load state dictionary
         state = torch.load(weights_path)
