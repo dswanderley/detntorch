@@ -220,14 +220,16 @@ class Training:
             print('\n')
 
             # ======================== Save weights ============================ #
-            if (loss_train <= best_loss) and (AP.mean() >= best_ap):
-                best_loss = loss_train
+            best_loss = loss_train if loss_train <= best_loss else best_loss
+            is_best = AP.mean() >= best_ap
+            if is_best:
                 best_ap = AP.mean()
                 # save
                 self._saveweights({
                         'epoch': self.epoch + 1,
                         'state_dict': self.model.state_dict(),
-                        'train_loss_total': best_loss,
+                        'train_loss_total': loss_train,
+                        'train_best_loss': best_loss,
                         'val_precision': precision.mean(),
                         'val_recall': recall.mean(),
                         'val_mAP': AP.mean(),

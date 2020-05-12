@@ -166,7 +166,7 @@ class Training:
             # ========================= Training =============================== #
             avg_loss_train, loss_cls_train, loss_box_train = self._iterate_train(data_loader_train)
             print('Training loss:  {:f}'.format(avg_loss_train))
-
+            print('')
             
             # ========================= Validation ============================= #
             precision, recall, AP, f1, ap_class = evaluate(self.model,
@@ -192,16 +192,18 @@ class Training:
             print('\n')
             
             # ======================== Save weights ============================ #
-            if (avg_loss_train <= best_loss) and (AP.mean() >= best_ap):
-                best_loss = avg_loss_train
+            best_loss = avg_loss_train if avg_loss_train <= best_loss else best_loss
+            is_best = AP.mean() >= best_ap
+            if is_best:
                 best_ap = AP.mean()
                 # save
                 self._saveweights({
                     'epoch': self.epoch + 1,
                     'state_dict': self.model.state_dict(),
-                    'train_focal_loss': best_loss,
+                    'train_focal_loss': avg_loss_train,
                     'train_box_loss': loss_box_train,
                     'train_cls_loss': loss_cls_train,
+                    'train_best_loss': best_loss,
                     'val_best_ap': best_ap,
                     'val_precision': precision.mean(),
                     'val_recall': recall.mean(),
