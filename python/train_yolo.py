@@ -243,12 +243,12 @@ class Training:
                     },
                     log=log_str )
 
+                    print('Model {:s} updated!'.format(self.train_name))
+                    print('\n')
+
             # ====================== Tensorboard Logging ======================= #
             if self.logger:
                 self._logging(self.epoch, loss_train, evaluation_metrics)
-
-            print('Model {:s} updated!'.format(self.train_name))
-            print('\n')
 
 
 if __name__ == "__main__":
@@ -257,10 +257,10 @@ if __name__ == "__main__":
     # Training parameters
     parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
     parser.add_argument("--num_epochs", type=int, default=150, help="size of each image batch")
-    parser.add_argument("--model_name", type=str, default="yolov3-tiny_fol", help="name of the model definition, used to load the config. file,")
+    parser.add_argument("--model_name", type=str, default="yolov3", help="name of the model definition, used to load the config. file,")
     # Evaluation parameters
     parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
-    parser.add_argument("--score_thres", type=float, default=0.5, help="object confidence threshold")
+    parser.add_argument("--conf_thres", type=float, default=0.5, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
 
     opt = parser.parse_args()
