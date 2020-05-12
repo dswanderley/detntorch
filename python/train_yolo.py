@@ -243,8 +243,8 @@ class Training:
                     },
                     log=log_str )
 
-                    print('Model {:s} updated!'.format(self.train_name))
-                    print('\n')
+                print('Model {:s} updated!'.format(self.train_name))
+                print('\n')
 
             # ====================== Tensorboard Logging ======================= #
             if self.logger:

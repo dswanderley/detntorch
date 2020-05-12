@@ -207,39 +207,40 @@ class Training:
             print(AsciiTable(ap_table).table)
             print("mAP: "+ str(AP.mean()))
             print('\n')
-
+            
             # ======================== Save weights ============================ #
             if (avg_loss_train <= best_loss) and (AP.mean() >= best_ap):
                 best_loss = avg_loss_train
                 best_ap = AP.mean()
                 # save
                 self._saveweights({
-                'epoch': self.epoch + 1,
-                'state_dict': self.model.state_dict(),
-                'train_loss_sum': best_loss,
-                'train_loss_classifier': loss_dict_train['loss_classifier'],
-                'train_loss_box_reg': loss_dict_train['loss_box_reg'],
-                'train_loss_objectness': loss_dict_train['loss_objectness'],
-                'train_loss_rpn_box_reg': loss_dict_train['loss_rpn_box_reg'],
-                'val_precision': precision.mean(),
-                'val_recall': recall.mean(),
-                'val_mAP': AP.mean(),
-                'val_f1': f1.mean(),
-                'batch_size': batch_size,
-                'optimizer': str(self.optimizer),
-                'optimizer_dict': self.optimizer.state_dict(),
-                'device': str(self.device),
-                'iou_thres': self.iou_thres,
-                'score_thres': self.score_thres,
-                'nms_thres': self.nms_thres
+                    'epoch': self.epoch + 1,
+                    'state_dict': self.model.state_dict(),
+                    'train_loss_sum': best_loss,
+                    'train_loss_classifier': loss_dict_train['loss_classifier'],
+                    'train_loss_box_reg': loss_dict_train['loss_box_reg'],
+                    'train_loss_objectness': loss_dict_train['loss_objectness'],
+                    'train_loss_rpn_box_reg': loss_dict_train['loss_rpn_box_reg'],
+                    'val_precision': precision.mean(),
+                    'val_recall': recall.mean(),
+                    'val_mAP': AP.mean(),
+                    'val_f1': f1.mean(),
+                    'batch_size': batch_size,
+                    'optimizer': str(self.optimizer),
+                    'optimizer_dict': self.optimizer.state_dict(),
+                    'device': str(self.device),
+                    'iou_thres': self.iou_thres,
+                    'score_thres': self.score_thres,
+                    'nms_thres': self.nms_thres
                 })
+
+                print('Model {:s} updated!'.format(self.train_name))
+                print('\n')
 
             # ====================== Tensorboard Logging ======================= #
             if self.logger:
                 self._logging(self.epoch, avg_loss_train, evaluation_metrics)
 
-            print('Model {:s} updated!'.format(self.train_name))
-            print('\n')
 
 
 if __name__ == "__main__":

@@ -197,23 +197,23 @@ class Training:
                 best_ap = AP.mean()
                 # save
                 self._saveweights({
-                'epoch': self.epoch + 1,
-                'state_dict': self.model.state_dict(),
-                'train_focal_loss': best_loss,
-                'train_box_loss': loss_box_train,
-                'train_cls_loss': loss_cls_train,
-                'val_best_ap': best_ap,
-                'val_precision': precision.mean(),
-                'val_recall': recall.mean(),
-                'val_mAP': AP.mean(),
-                'val_f1': f1.mean(),
-                'batch_size': batch_size,
-                'optimizer': str(self.optimizer),
-                'optimizer_dict': self.optimizer.state_dict(),
-                'device': str(self.device),
-                'iou_thres': self.iou_thres,
-                'score_thres': self.score_thres,
-                'nms_thres': self.nms_thres
+                    'epoch': self.epoch + 1,
+                    'state_dict': self.model.state_dict(),
+                    'train_focal_loss': best_loss,
+                    'train_box_loss': loss_box_train,
+                    'train_cls_loss': loss_cls_train,
+                    'val_best_ap': best_ap,
+                    'val_precision': precision.mean(),
+                    'val_recall': recall.mean(),
+                    'val_mAP': AP.mean(),
+                    'val_f1': f1.mean(),
+                    'batch_size': batch_size,
+                    'optimizer': str(self.optimizer),
+                    'optimizer_dict': self.optimizer.state_dict(),
+                    'device': str(self.device),
+                    'iou_thres': self.iou_thres,
+                    'score_thres': self.score_thres,
+                    'nms_thres': self.nms_thres
                 })
                 
                 print('Model {:s} updated!'.format(self.train_name))
