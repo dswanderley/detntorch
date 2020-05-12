@@ -13,3 +13,4 @@ logs/*/events.out.tfevents.*
 logs/*/*/events.out.tfevents.*
 
 logs_old/
+weights/*.log
