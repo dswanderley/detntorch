@@ -15,13 +15,16 @@ Give examples
 
 ### Installing
 
-A step by step series of examples that tell you how to get a development env running
-
-Say what the step will be
-
+1 - Clone this repository:
 ```
-Give the example
+git clone https://github.com/dswanderley/detntorch.git
 ```
+
+2 - Install the Python pakages:
+```
+conda install --yes --file /python/requirements.txt
+```
+This project was developed in Python 3.7 (and 3.6) using a virtual environment from Anaconda 3.
 
 ### Training
 
