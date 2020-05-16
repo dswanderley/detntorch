@@ -58,13 +58,14 @@ The IoU measures the overlap between two boundaries.
 <img src="https://latex.codecogs.com/gif.latex?IoU&space;=&space;\frac{\text{area&space;of&space;overlap}}{\text{area&space;of&space;union}}" title="IoU = \frac{\text{area of overlap}}{\text{area of union}}" />
 </p> 
 
-#### Basic Concepts
+### Basic Concepts
 - <b>True Positive (TP)</b>:  Number of correctly predictions of a class (detection with IoU ≥ threshold).
 - <b>True Negative (TN)</b>:  Number of correctly predictions of the negative class (not applied in these tasks).
 - <b>False Positive (FP)</b>: Number of incorrectly predictions of a class (detection with IOU < threshold).
 - <b>False Negative (FN)</b>: Number of incorrectly predictions of the negative class (ground truth not detected).
 
-#### Precision
+
+### Precision
 Precision is the fraction of predicted objects that are relevant to the image:
 <p align="center"> 
 <img src="https://latex.codecogs.com/gif.latex?\small&space;\text{precision}&space;=\frac{TP}{TP&space;&plus;&space;FP}" title="\small \text{precision} =\frac{TP}{TP + FP}" />
