@@ -28,18 +28,23 @@ This project was developed in Python 3.7 (and 3.6) using a virtual environment f
 
 ### Training
 
-Explain how to train
+The network can be trained using the training script of the desired network. Below are some examples:
 
 ```
-Give an example
+python train_rcnn.py --batch_size 8
+python train_retina.py --batch_size 8
+python train_yolo.py --model_name yolov3 --batch_size 6
+python train_yolo.py --model_name yolov3-tiny --batch_size 8
 ```
 
-### Testing
+### Detection
 
-Explain what these test and why
-
+The visualization of each network detections can be done by running the correspondent network detect script. Below are some examples:
 ```
-Give an example
+python detect_rcnn.py --weights_path ../weights/NAME_OF_SAVED_WEIGHTS.pth.tar
+python detect_retina.py --weights_path ../weights/NAME_OF_SAVED_WEIGHTS.pth.tar
+python detect_yolo.py --model_name yolov3 --weights_path ../weights/NAME_OF_SAVED_WEIGHTS.pth.tar
+python detect_yolo.py --model_name yolov3-tiny --weights_path ../weights/NAME_OF_SAVED_WEIGHTS.pth.tar
 ```
 
 
