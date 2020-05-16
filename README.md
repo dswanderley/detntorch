@@ -93,6 +93,9 @@ The AP is computed given the area under the curve (AUC) of the precision x recal
 
 ## Acknowledgements
 
+- This implemantation o Faster R-CNN on the [torchvision](https://github.com/pytorch/vision).
 - This implementation of RetinaNet was based on the [Pytorch implementation of RetinaNet object detection](https://github.com/yhenon/pytorch-retinanet).
+- This implemantation of YOLO v3 was based on the [PyTorch-YOLOv3
+](https://github.com/eriklindernoren/PyTorch-YOLOv3).
 - The original [keras retinanet implementation](https://github.com/fizyr/keras-retinanet)
 - Some relevant functions used for the calculation of evaluation metrics are from [Most popular metrics used to evaluate object detection algorithms](https://github.com/rafaelpadilla/Object-Detection-Metrics) and [Faster R-CNN (Python implementation)](https://github.com/rbgirshick/py-faster-rcnn).
