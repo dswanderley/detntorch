@@ -71,7 +71,7 @@ for dname, fname in zip(dataset_names, dataset_folder):
                 w = x2 - x1
                 # Add data to table
                 data_table.append([ dname, filename,
-                                  label,
+                                  class_names[label],
                                   x1, y1, x2, y2,
                                   xc, yc, w, h
                                 ])
@@ -100,6 +100,6 @@ for dname, fname in zip(dataset_names, dataset_folder):
         plt.close()
 
 # Save data on a csv
-with open( dataset_path + "data.csv", 'w', newline='') as fp:
+with open( dataset_path + "/data.csv", 'w', newline='') as fp:
     writer = csv.writer(fp, delimiter=';')
     writer.writerows(data_table)
