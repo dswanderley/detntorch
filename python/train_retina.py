@@ -204,7 +204,6 @@ class Training:
                     'train_box_loss': loss_box_train,
                     'train_cls_loss': loss_cls_train,
                     'train_best_loss': best_loss,
-                    'val_best_ap': best_ap,
                     'val_precision': precision.mean(),
                     'val_recall': recall.mean(),
                     'val_mAP': AP.mean(),
