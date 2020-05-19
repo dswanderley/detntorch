@@ -47,10 +47,13 @@ testset = { fname: [] for fname in testset_names }
 groundtruth = copy.deepcopy(testset)
 [ groundtruth[t_data['filename']].append(t_data) for t_data in dataset if t_data['filename'] in testset_names ]
 
+models_eval = []
+
 # Read Detections
 for pfile in prediction_files:
+    model_name = pfile.split('\\')[-2]
     predictions = copy.deepcopy(testset) # Prediction dictionary / detection by filename
-
+    
     # Load detections
     with open(pfile) as f:
         detections = [ { k: v for k, v in row.items() }
@@ -217,6 +220,17 @@ for pfile in prediction_files:
         dict_writer = csv.DictWriter(fp, keys_g, delimiter=';')
         dict_writer.writeheader()
         dict_writer.writerows(comparison_ovral)
+
+    # Store 
+    overall_dict['filename'] = model_name
+    models_eval.append(overall_dict)
+
+# Save models evaluation
+keys_m = models_eval[0].keys()
+with open(os.path.join(predict_path, 'models_results.csv'), 'w', newline='') as fp:
+    dict_writer = csv.DictWriter(fp, keys_m, delimiter=';')
+    dict_writer.writeheader()
+    dict_writer.writerows(models_eval)
 
 print('finish')
     

@@ -14,3 +14,5 @@ logs/*/*/events.out.tfevents.*
 
 logs_old/
 weights/*.log
+predictions/*.xlsx
+predictions/models_results.csv
