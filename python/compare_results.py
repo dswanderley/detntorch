@@ -21,8 +21,19 @@ dataset_file = '../datasets/ovarian/data.csv'
 predict_path = '../predictions'
 result_file = 'results.csv'
 
-
 prediction_files = [ os.path.join(r,result_file)  for r, d, f in os.walk(predict_path) if result_file in f ]
+
+
+def point_in_box(p, box):
+    px, py = p
+    bx1, by1, bx2, by2 = box
+
+    if px < bx1 or px > bx2:
+        return False
+    elif py < by1 or py > by2:
+        return False
+    else:
+        return True
 
 # dataset	filename	class	x1	y1	x2	y2	xc	yc	w	h
 
@@ -93,6 +104,7 @@ for pfile in prediction_files:
             dtn = detect[d]
             score = dtn['scores'] if 'scores' in dtn else dtn['cls_conf']
             box_dt = torch.tensor([ float(dtn['x1']), float(dtn['y1']), float(dtn['x2']), float(dtn['y2']) ])
+            box_center = ( (box_dt[0] + box_dt[2]) / 2, (box_dt[1] + box_dt[3]) / 2)
             best_iou = 0
             best_gt_id = -1
 
@@ -107,11 +119,12 @@ for pfile in prediction_files:
                     # Store if the is the best
                     if iou.item() > best_iou:
                         best_iou = iou.item()
-                        best_gt_id = g
+                        if point_in_box(box_center, box_gt):
+                            best_gt_id = g
             
             # Add comparison to data
             dtn['iou'] = best_iou
-            dtn['gt_idx'] = best_gt_id
+            dtn['gt_idx'] = best_gt_id + 1
             if best_gt_id < 0:
                 dtn['status'] = 'FP'
                 pred_tp_list.append(0)
