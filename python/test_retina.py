@@ -16,7 +16,8 @@ from torch.autograd import Variable
 from tqdm import tqdm
 from PIL import Image
 
-from models.retinanet import RetinaNet
+import models.retinanet as retinanet
+
 from models.yolo_utils.utils import *
 from utils.datasets import OvaryDataset, printBoudingBoxes
 
@@ -82,8 +83,8 @@ def batch_statistics(outputs, targets, iou_threshold):
         true_positives = np.zeros(pred_boxes.shape[0])
 
         annotations = targets[sample_i]
-        target_labels = annotations['labels']
-        target_boxes = annotations['boxes']
+        target_labels = annotations[:,-1]
+        target_boxes = annotations[:,:4]
 
         if len(target_boxes):
             detected_boxes = []
@@ -139,24 +140,23 @@ def evaluate(model, data_loader, iou_thres, score_thres, nms_thres, device, save
     labels = []         # to recieve targets
 
     # Batch iteration - Validation dataset
-    for batch_idx, (names, imgs, targets) in enumerate(data_loader):
+    for batch_idx, data in enumerate(data_loader):
 
         # Get images and targets
-        images = torch.stack(imgs).to(device)
-        # Labels
-        for tgt in targets:
-            labels += tgt['labels'].tolist()
+        images = data['img'].float().to(device)
+        
         # Set targets
-        targets = [ { 'boxes':  tgt['boxes'].to(device),'labels': tgt['labels'].to(device) } 
-                    for tgt in targets ]
+        targets = data['annot'].to(device)
 
         # Run prediction 
         with torch.no_grad():
-            detections = model(images) # pred_scores, pred_class, pred_boxes
-            outputs = non_max_suppression(detections, score_thres=score_thres, nms_thres=nms_thres) # Removes detections with lower score 
-            # outputs = [ { 'boxes':boxes, 'labels':labels.float(), 'scores':scores } for scores, labels, boxes in detections ]
-            # outputs = apply_score_threshold(detections, threshold=score_thres)
-
+            scores, labels, boxes =  model(images) # pred_scores, pred_class, pred_boxes
+            # outputs = non_max_suppression(detections, score_thres=score_thres, nms_thres=nms_thres) # Removes detections with lower score 
+            if images.shape[0] == 1: # workaround
+                outputs = [ { 'boxes':boxes, 'labels':labels.float(), 'scores':scores } ]
+            else:
+                outputs = [ { 'boxes':b, 'labels':l.float(), 'scores':s } for s, l, b in zip(scores, labels, boxes) ]
+                       
         sample_metrics += batch_statistics(outputs,
                                 targets,
                                 iou_threshold=iou_thres) # [true_positives, pred_scores, pred_labels]
@@ -184,7 +184,7 @@ def evaluate(model, data_loader, iou_thres, score_thres, nms_thres, device, save
     else:
         # Concatenate sample statistics
         true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
-        precision, recall, AP, f1, ap_class = ap_per_class(true_positives, pred_scores, pred_labels, labels)
+        precision, recall, AP, f1, ap_class = ap_per_class(true_positives, pred_scores, pred_labels, targets[:,:,-1].cpu())
 
     return precision, recall, AP, f1, ap_class
 
@@ -195,7 +195,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     # Network parameters
-    parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
+    parser.add_argument("--batch_size", type=int, default=1, help="size of each image batch")
     parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
     parser.add_argument("--weights_path", type=str, default="../weights/20200510_2120_retinanet_weights.pth.tar", help="path to weights file")
@@ -224,15 +224,16 @@ if __name__ == "__main__":
     data_loader = DataLoader(dataset,
                             batch_size=opt.batch_size,
                             shuffle=False,
-                            collate_fn=dataset.collate_fn_rcnn)
+                            collate_fn=dataset.collate_fn_retina)
 
     # Get device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Initiate model
-    model = RetinaNet(in_channels=opt.num_channels, num_classes=n_classes, pretrained=True).to(device)
+    model = retinanet.resnet50(num_classes=n_classes, pretrained=True).to(device)
+    # RetinaNet(in_channels=opt.num_channels, num_classes=n_classes, pretrained=True).to(device)
 
-    if weights_path is not None:
+    if weights_path is  None:
         # Load state dictionary
         state = torch.load(weights_path)
         model.load_state_dict(state['state_dict'])

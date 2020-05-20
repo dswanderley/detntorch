@@ -19,9 +19,9 @@ from tqdm import tqdm
 from terminaltables import AsciiTable
 
 import utils.transformations as tsfrm
+import models.retinanet as retinanet
 
 from test_retina import evaluate
-from models.retinanet import RetinaNet
 from utils.datasets import OvaryDataset
 from utils.helper import gettrainname
 
@@ -76,23 +76,27 @@ class Training:
         self.model.freeze_bn()
 
         # Batch iteration - Training dataset
-        for batch_idx, (names, imgs, tgts) in enumerate(tqdm(data_loader, desc="Training epoch")):
+        for batch_idx, data in enumerate(tqdm(data_loader, desc="Training epoch")):
             batches_done = len(data_loader) * self.epoch + batch_idx
 
             # Get images and targets
-            images = torch.stack(imgs).to(self.device)
+            images = data['img'].float().to(self.device)
             
             # Set targets
-            targets = [{ 'boxes':  tgt['boxes'].to(self.device),'labels': tgt['labels'].to(self.device) } 
-                        for tgt in tgts]
+            targets = data['annot'].to(self.device)
 
             # Forward and loss
             self.optimizer.zero_grad()
-            loss_dict = self.model(images, targets)
+            classification_loss, regression_loss = self.model( [ images, targets ] )
+
+            classification_loss = classification_loss.mean()
+            regression_loss = regression_loss.mean()
 
             # Compute loss
-            losses = sum(loss for loss in loss_dict.values())
-            loss_value = losses.item()
+            classification_loss = classification_loss.mean()
+            regression_loss = regression_loss.mean()
+            loss = classification_loss + regression_loss
+            loss_value = loss.item()
 
             # Test if valid to continue
             if not math.isfinite(loss_value):
@@ -100,14 +104,14 @@ class Training:
                 sys.exit(1)
 
             # Backpropagation
-            losses.backward()
+            loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.1)
             self.optimizer.step()
 
             # Sum ponderated batch loss 
             loss_train_sum += loss_value * batch_size / data_train_len
-            loss_cls_sum   += float(loss_dict['cls_los'].item()) * batch_size / data_train_len
-            loss_box_sum   += float(loss_dict['box_loss'].item()) * batch_size / data_train_len
+            loss_cls_sum   += float(classification_loss.item()) * batch_size / data_train_len
+            loss_box_sum   += float(classification_loss.item()) * batch_size / data_train_len
 
         return loss_train_sum, loss_cls_sum, loss_box_sum
 
@@ -150,9 +154,9 @@ class Training:
 
         # Load Dataset
         data_loader_train = DataLoader(self.train_set, batch_size=batch_size, shuffle=True,
-                                        collate_fn=self.train_set.collate_fn_rcnn)
+                                        collate_fn=self.train_set.collate_fn_retina)
         data_loader_val = DataLoader(self.valid_set, batch_size=1, shuffle=False,
-                                        collate_fn=self.valid_set.collate_fn_rcnn)
+                                        collate_fn=self.valid_set.collate_fn_retina)
 
         # Define parameters
         best_loss = 1000000    # Init best loss with a too high value
@@ -257,7 +261,8 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Load network model
-    model = RetinaNet(in_channels=input_channels, num_classes=n_classes, pretrained=True).to(device)
+    model = retinanet.resnet50(num_classes=n_classes, pretrained=True).to(device)
+    #RetinaNet(in_channels=input_channels, num_classes=n_classes, pretrained=True).to(device)
     #model = torch.nn.DataParallel(model).to(device)
 
     # Transformation parameters
