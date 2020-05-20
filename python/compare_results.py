@@ -137,25 +137,34 @@ for pfile in prediction_files:
             pred_scores_list.append(float(score))
             pred_lbls_list.append(class_names.index(dtn[lbl_key]))
             
+        
+    
+        # Check for duplicated (when NMS fail)
+        duplicate = []
+        for i in range(len(gt_id_list)):
+            for j in range(len(gt_id_list)):
+                if gt_id_list[i] == gt_id_list[j] and gt_id_list[i] >= 0 and i != j:
+                    if iou_list[j] > iou_list[i]:
+                        duplicate.append(i)
+                        break
+
+        for d in reversed(duplicate):
+            detect[d]['status']='DP'
+            del pred_tp_list[d]
+            del gt_id_list[d]
+            del pred_scores_list[d]
+            del pred_lbls_list[d]
+
         # Image prediction evaluation
         precision, recall, AP, f1, ap_class = ap_per_class( np.array(pred_tp_list), 
                                                             np.array(pred_scores_list), 
                                                             np.array(pred_lbls_list), 
                                                             gt_lbls_list )
-    
-        # Check for duplicated (when NMS fail)
-        duplicate = []
-        for i in range(len(gt_id_list)-1):
-            for j in range(i+1,len(gt_id_list)):
-                if gt_id_list[i] == gt_id_list[j] and gt_id_list[i] >= 0:
-                    if iou_list[i] < iou_list[j]:
-                        duplicate.append(j)
-                    else:
-                        duplicate.append(i)
+            
         # False positives, false negatives and true positives
         false_negative = [ gt_i for gt_i in range(len(gtruth)) if gt_i not in gt_id_list ]
-        false_positive = [ dt_i for dt_i in range(len(detect)) if gt_id_list[dt_i] < 0 ]
-        true_positive =  [ gt_i for gt_i in range(len(gtruth)) if gt_i in list(set(gt_id_list)) ]
+        false_positive = [ dt_i for dt_i in range(len(gt_id_list)) if gt_id_list[dt_i] < 0 ]
+        true_positive =  [ gt_i for gt_i in range(len(gtruth)) if gt_i in list(set(gt_id_list)) and gt_i ]
         # Append to count
         model_num_tgt.append(len(gtruth))
         model_num_dtn.append(len(detect))
