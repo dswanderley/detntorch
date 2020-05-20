@@ -16,3 +16,4 @@ logs_old/
 weights/*.log
 predictions/*.xlsx
 predictions/models_results.csv
+*/resnet50-19c8e357.pth
