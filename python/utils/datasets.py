@@ -358,6 +358,35 @@ class OvaryDataset(Dataset):
         return names, images, targets
 
 
+    def collate_fn_retina(self, batch):
+        '''
+        Merges a list of samples to form a faster rcnn batch (coco based)
+
+        Output: three lists
+            - images:   tensor - size (batch_size, channels, height, width)
+            - boxes:    tensor 
+            - labels:   tensor
+        '''
+        # Images
+        imgs = [x[1].unsqueeze(0) for x in batch]
+        
+        num_imgs = len(imgs)
+        scales = torch.ones(num_imgs)
+        images = torch.stack(imgs)
+
+        # Annotations
+        annots = [ torch.cat( (x[8], x[9].unsqueeze(1).float()), dim=1 ) for x in batch ]
+        max_num_annots = max(annot.shape[0] for annot in annots)
+    
+        annot_padded = torch.ones((len(annots), max_num_annots, 5)) * -1
+        if max_num_annots > 0:
+            for idx, annot in enumerate(annots):
+                if annot.shape[0] > 0:
+                    annot_padded[idx, :annot.shape[0], :] = annot
+
+        return { 'img': images, 'annot': annot_padded, 'scale': scales }
+
+
     def collate_fn_yolo(self, batch):
         '''
         Merges a list of samples to form a YOLO batch.
