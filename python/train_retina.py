@@ -89,9 +89,6 @@ class Training:
             self.optimizer.zero_grad()
             classification_loss, regression_loss = self.model( [ images, targets ] )
 
-            classification_loss = classification_loss.mean()
-            regression_loss = regression_loss.mean()
-
             # Compute loss
             classification_loss = classification_loss.mean()
             regression_loss = regression_loss.mean()
