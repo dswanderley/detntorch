@@ -76,19 +76,19 @@ def batch_statistics(outputs, targets, iou_threshold):
             continue
 
         output = outputs[sample_i]
-        pred_boxes = output['boxes'] 
+        pred_boxes = output['boxes']
         pred_scores = output['scores'] if len(output['scores'].shape) == 1 else output['scores'][:,0]
         pred_labels = output['labels'] if len(output['labels'].shape) == 1 else output['labels'][:,0]
 
         true_positives = np.zeros(pred_boxes.shape[0])
 
         annotations = targets[sample_i]
-        target_labels = annotations[:,-1]
-        target_boxes = annotations[:,:4]
+        target_labels = annotations['labels']
+        target_boxes = annotations['boxes']
 
         if len(target_boxes):
             detected_boxes = []
-            
+
             for pred_i, (pred_box, pred_label) in enumerate(zip(pred_boxes, pred_labels)):
 
                 # If targets are found break
@@ -111,7 +111,10 @@ def apply_score_threshold(detections, threshold=0.3):
     
     output = [ { 'boxes':None, 'labels':None, 'scores':None } for _ in range( len(detections) ) ]
 
-    for idx, (scores, labels, boxes) in enumerate(detections):
+    for idx, data in enumerate(detections):
+        boxes = data['boxes']
+        labels = data['labels']
+        scores = data['scores']
         s = [] 
         l = []
         b = []
@@ -137,7 +140,7 @@ def evaluate(model, data_loader, iou_thres, score_thres, nms_thres, device, save
     model = model.to(device)
 
     sample_metrics = [] # List of (TP, confs, pred)
-    labels = []         # to recieve targets
+    gt_labels = []         # to recieve targets
 
     # Batch iteration - Validation dataset
     for batch_idx, data in enumerate(data_loader):
@@ -146,7 +149,10 @@ def evaluate(model, data_loader, iou_thres, score_thres, nms_thres, device, save
         images = data['img'].float().to(device)
         
         # Set targets
-        targets = data['annot'].to(device)
+        targets = []
+        for tgt in data['annot'].to(device):
+            gt_labels += tgt[...,-1].tolist()
+            targets.append({ 'boxes': tgt[...,:4],'labels': tgt[...,-1]})
 
         # Run prediction 
         with torch.no_grad():
@@ -157,22 +163,11 @@ def evaluate(model, data_loader, iou_thres, score_thres, nms_thres, device, save
             else:
                 outputs = [ { 'boxes':b, 'labels':l.float(), 'scores':s } for s, l, b in zip(scores, labels, boxes) ]
                        
+        #outputs = apply_score_threshold(detections, threshold=0.4)
+
         sample_metrics += batch_statistics(outputs,
                                 targets,
                                 iou_threshold=iou_thres) # [true_positives, pred_scores, pred_labels]
-
-        # Save images if needed
-        if save_bb:
-            for i in range(len(names)):
-                im_name = names[i]
-                im = imgs[i]
-                out_bb = outputs[i]
-                # Get RGB image with BB
-                im_np = printBoudingBoxes(im, out_bb['boxes'], 
-                                            lbl=out_bb['labels'], 
-                                            score=out_bb['scores'])
-                # Save image
-                Image.fromarray((255*im_np).astype(np.uint8)).save('../predictions/faster_rcnn/' + im_name)
 
     # Protect in case of no object detected
     if len(sample_metrics) == 0:
@@ -184,7 +179,7 @@ def evaluate(model, data_loader, iou_thres, score_thres, nms_thres, device, save
     else:
         # Concatenate sample statistics
         true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
-        precision, recall, AP, f1, ap_class = ap_per_class(true_positives, pred_scores, pred_labels, targets[:,:,-1].cpu())
+        precision, recall, AP, f1, ap_class = ap_per_class(true_positives, pred_scores, pred_labels, gt_labels)
 
     return precision, recall, AP, f1, ap_class
 
@@ -198,7 +193,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=1, help="size of each image batch")
     parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
-    parser.add_argument("--weights_path", type=str, default="../weights/20200510_2120_retinanet_weights.pth.tar", help="path to weights file")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200521_1907_retinanet_weights.pth.tar", help="path to weights file")
     # Evaluation parameters
     parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
     parser.add_argument("--score_thres", type=float, default=0.05, help="object confidence threshold")
@@ -233,7 +228,7 @@ if __name__ == "__main__":
     model = retinanet.resnet50(num_classes=n_classes, pretrained=True).to(device)
     # RetinaNet(in_channels=opt.num_channels, num_classes=n_classes, pretrained=True).to(device)
 
-    if weights_path is  None:
+    if weights_path is not None:
         # Load state dictionary
         state = torch.load(weights_path)
         model.load_state_dict(state['state_dict'])
