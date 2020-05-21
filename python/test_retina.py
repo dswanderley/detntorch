@@ -193,7 +193,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=1, help="size of each image batch")
     parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
-    parser.add_argument("--weights_path", type=str, default="../weights/20200521_1907_retinanet_weights.pth.tar", help="path to weights file")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200521_1936_retinanet_weights.pth.tar", help="path to weights file")
     # Evaluation parameters
     parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
     parser.add_argument("--score_thres", type=float, default=0.05, help="object confidence threshold")
