@@ -96,10 +96,9 @@ class Training:
             classification_loss = classification_loss.mean()
             regression_loss = regression_loss.mean()
             loss = classification_loss + regression_loss
-            loss_value = loss.item()
 
             # Test if valid to continue
-            if not math.isfinite(loss_value):
+            if not math.isfinite(loss):
                 print("Loss is {}, stopping training".format(loss_value))
                 sys.exit(1)
 
@@ -109,7 +108,7 @@ class Training:
             self.optimizer.step()
 
             # Sum ponderated batch loss 
-            loss_train_sum += loss_value * batch_size / data_train_len
+            loss_train_sum += loss.item() * batch_size / data_train_len
             loss_cls_sum   += float(classification_loss.item()) * batch_size / data_train_len
             loss_box_sum   += float(classification_loss.item()) * batch_size / data_train_len
 
