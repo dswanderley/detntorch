@@ -21,7 +21,7 @@ from PIL import Image
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
-from models.retinanet import RetinaNet
+import models.retinanet as retinanet
 from models.yolo_utils.utils import *
 from utils.datasets import *
 from test_retina import non_max_suppression, batch_statistics
@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     # Network parameters
-    parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
+    parser.add_argument("--batch_size", type=int, default=1, help="size of each image batch")
     parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
     parser.add_argument("--weights_path", type=str, default="../weights/20200521_1936_retinanet_weights.pth.tar", help="path to weights file")
@@ -71,13 +71,14 @@ if __name__ == "__main__":
     dataloader = DataLoader(dataset,
                             batch_size=opt.batch_size,
                             shuffle=False,
-                            collate_fn=dataset.collate_fn_rcnn)
+                            collate_fn=dataset.collate_fn_retina)
 
     # Load device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Initiate model
-    model = RetinaNet(in_channels=opt.num_channels, num_classes=n_classes, pretrained=True).to(device)
+    model = retinanet.resnet50(num_classes=n_classes, pretrained=True).to(device)
+    #model = RetinaNet(in_channels=opt.num_channels, num_classes=n_classes, pretrained=True).to(device)
     if weights_path is not None:
         # Load state dictionary
         state = torch.load(weights_path)
@@ -92,18 +93,25 @@ if __name__ == "__main__":
 
     print("\nPerforming object detection:")
     prev_time = time.time()
-    for batch_i, (names, imgs, targets) in enumerate(dataloader):
-                
+    for batch_i, data in enumerate(dataloader):
+        
         # Get images and targets
-        images = torch.stack(imgs).to(device)
+        images = data['img'].float().to(device)
 
-        targets = [{ 'boxes':  tgt['boxes'].to(device),'labels': tgt['labels'].to(device) } 
-                    for tgt in targets]
+        # Set targets
+        targets = []
+        for tgt in data['annot'].to(device):
+            targets.append({ 'boxes': tgt[...,:4],'labels': tgt[...,-1]})
 
         # Get detections
         with torch.no_grad():
-            detections = model(images)
-            detections = non_max_suppression(detections, opt.score_thres, opt.nms_thres) # Removes detections with lower score 
+            scores, labels, boxes =  model(images) # pred_scores, pred_class, pred_boxes
+            # outputs = non_max_suppression(detections, score_thres=score_thres, nms_thres=nms_thres) # Removes detections with lower score 
+            if images.shape[0] == 1: # workaround
+                detections = [ { 'boxes':boxes, 'labels':labels.float(), 'scores':scores } ]
+            else:
+                detections = [ { 'boxes':b, 'labels':l.float(), 'scores':s } for s, l, b in zip(scores, labels, boxes) ]
+            #detections = non_max_suppression(detections, opt.score_thres, opt.nms_thres) # Removes detections with lower score 
 
         # Log progress
         current_time = time.time()
@@ -112,7 +120,7 @@ if __name__ == "__main__":
         print("\t+ Batch %d, Inference Time: %s" % (batch_i, inference_time))
 
         # Save image and detections
-        img_names.extend(names)
+        img_names.extend(data['names'])
         img_detections.extend(detections)
 
     # Bounding-box colors
