@@ -107,7 +107,7 @@ class Training:
             # Sum ponderated batch loss 
             loss_train_sum += loss.item() * batch_size / data_train_len
             loss_cls_sum   += float(classification_loss.item()) * batch_size / data_train_len
-            loss_box_sum   += float(classification_loss.item()) * batch_size / data_train_len
+            loss_box_sum   += float(regression_loss.item()) * batch_size / data_train_len
 
         return loss_train_sum, loss_cls_sum, loss_box_sum
 
