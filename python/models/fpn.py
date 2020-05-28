@@ -54,28 +54,29 @@ class ResNetBackbone(nn.Module):
         backbone, shortcut_features, bb_out_name = get_backbone(backbone_model, pretrained=pretrained)
         # backbone input conv
         self.conv1 = backbone.conv1
-        self.conv1.load_state_dict(backbone.conv1.state_dict())
         self.bn1 = backbone.bn1
-        self.bn1.load_state_dict(backbone.bn1.state_dict())
         #self.relu = self.backbone.relu
         self.maxpool = backbone.maxpool
         # Sequence 1
         self.layer1 = backbone.layer1
-        self.layer1.load_state_dict(backbone.layer1.state_dict())
         # Sequence 2
         self.layer2 = backbone.layer2
-        self.layer2.load_state_dict(backbone.layer2.state_dict())
         # Sequence 3
         self.layer3 = backbone.layer3
-        self.layer3.load_state_dict(backbone.layer3.state_dict())
         # Sequence 4
         self.layer4 = backbone.layer4
-        self.layer4.load_state_dict(backbone.layer4.state_dict())
         # Output features
         self.fpn_sizes = [self.layer2[- 1].conv3.out_channels,
                           self.layer3[- 1].conv3.out_channels,
                           self.layer4[- 1].conv3.out_channels]
-        #print(self.layer4._get_name())
+        # Load weigths
+        if pretrained:
+            self.conv1.load_state_dict(backbone.conv1.state_dict())
+            self.bn1.load_state_dict(backbone.bn1.state_dict())
+            self.layer1.load_state_dict(backbone.layer1.state_dict())
+            self.layer2.load_state_dict(backbone.layer2.state_dict())
+            self.layer3.load_state_dict(backbone.layer3.state_dict())
+            self.layer4.load_state_dict(backbone.layer4.state_dict())
 
     def forward(self, x):
         # adjust input channels
