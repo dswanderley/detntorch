@@ -74,9 +74,6 @@ class FocalLoss(nn.Module):
 
             IoU_max, IoU_argmax = torch.max(IoU, dim=1) # num_anchors x 1
 
-            #import pdb
-            #pdb.set_trace()
-
             # compute the loss for classification
             targets = torch.ones(classification.shape).to(device) * -1
             targets[torch.lt(IoU_max, 0.4), :] = 0
