@@ -138,12 +138,23 @@ class RetinaNet(nn.Module):
         self.regressBoxes = BBoxTransform()
         self.clipBoxes = ClipBoxes()
         self.focalLoss = FocalLoss()
+        # Set initial weights
+        with torch.no_grad():
+            for m in self.modules():
+                if  m not in self.fpn.backbone.modules():
+                    if isinstance(m, nn.Conv2d):
+                        n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                        m.weight.normal_(0, math.sqrt(2. / n))
+                    elif isinstance(m, nn.BatchNorm2d):
+                        m.weight.fill_(1)
+                        m.bias.zero_()
         # Adjust output weights
-        prior = 0.01
-        self.classification.conv5.weight.data.fill_(0)
-        self.classification.conv5.bias.data.fill_(-math.log((1.0 - prior) / prior))
-        self.regression.conv5.weight.data.fill_(0)
-        self.regression.conv5.bias.data.fill_(0)
+        prior = 0.01        
+        with torch.no_grad():
+            self.classification.conv5.weight.fill_(0)
+            self.classification.conv5.bias.fill_(-math.log((1.0 - prior) / prior))
+            self.regression.conv5.weight.fill_(0)
+            self.regression.conv5.bias.fill_(0)
         self.freeze_bn()
 
     def freeze_bn(self):
