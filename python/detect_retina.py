@@ -102,7 +102,9 @@ if __name__ == "__main__":
 
         # Get detections
         with torch.no_grad():
-            detections = model(images)
+            pred_scores, pred_labels, pred_boxes =  model(images) # pred_scores, pred_class, pred_boxes    
+            detections = [ { 'boxes':box, 'labels':lbl, 'scores':sc } 
+                            for sc, lbl, box in zip(pred_scores, pred_labels, pred_boxes) ]
             detections = non_max_suppression(detections, opt.score_thres, opt.nms_thres) # Removes detections with lower score 
 
         # Log progress

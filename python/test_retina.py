@@ -21,7 +21,7 @@ from models.yolo_utils.utils import *
 from utils.datasets import OvaryDataset, printBoudingBoxes
 
 
-def non_max_suppression(prediction, score_thres=0.05, nms_thres=0.4):
+def non_max_suppression(prediction, score_thres=0.3, nms_thres=0.4):
     """
     Removes detections with lower object confidence score than 'score_thres' and performs
     Non-Maximum Suppression to further filter detections.
@@ -30,8 +30,11 @@ def non_max_suppression(prediction, score_thres=0.05, nms_thres=0.4):
     """
     output = [ { 'boxes':None, 'labels':None, 'scores':None } for _ in range( len(prediction) ) ]
     # Iterate
-    for image_i, (scores, labels, boxes) in enumerate(prediction):
-        image_pred = torch.cat((boxes, scores.unsqueeze(1), labels.unsqueeze(1).float()), 1)
+    for image_i, pred in enumerate(prediction):
+        boxes = pred['boxes']
+        labels = pred['labels'].unsqueeze(1)
+        scores = pred['scores'].unsqueeze(1)
+        image_pred = torch.cat((boxes, scores, labels.float()), 1)
         # Filter out confidence scores below threshold
         image_pred = image_pred[image_pred[:, 4] >= score_thres]
         # If none are remaining => process next image
@@ -106,27 +109,6 @@ def batch_statistics(outputs, targets, iou_threshold):
     return batch_metrics
 
 
-def apply_score_threshold(detections, threshold=0.3):
-    
-    output = [ { 'boxes':None, 'labels':None, 'scores':None } for _ in range( len(detections) ) ]
-
-    for idx, (scores, labels, boxes) in enumerate(detections):
-        s = [] 
-        l = []
-        b = []
-        for i in range(len(scores)):
-            if scores[i] > threshold:
-                s.append(scores[i])
-                l.append(labels[i])
-                b.append(boxes[i])
-        if len(s) > 0:
-            output[idx]['boxes'] = torch.stack(b)
-            output[idx]['labels'] = torch.stack(l).float()
-            output[idx]['scores'] = torch.stack(s)
-
-    return output
-
-
 def evaluate(model, data_loader, iou_thres, score_thres, nms_thres, device, save_bb=False):
     """
         Evaluate model
@@ -152,10 +134,10 @@ def evaluate(model, data_loader, iou_thres, score_thres, nms_thres, device, save
 
         # Run prediction 
         with torch.no_grad():
-            detections = model(images) # pred_scores, pred_class, pred_boxes
-            outputs = non_max_suppression(detections, score_thres=score_thres, nms_thres=nms_thres) # Removes detections with lower score 
-            # outputs = [ { 'boxes':boxes, 'labels':labels.float(), 'scores':scores } for scores, labels, boxes in detections ]
-            # outputs = apply_score_threshold(detections, threshold=score_thres)
+            pred_scores, pred_labels, pred_boxes =  model(images) # pred_scores, pred_class, pred_boxes    
+            detections = [ { 'boxes':box, 'labels':lbl, 'scores':sc } 
+                            for sc, lbl, box in zip(pred_scores, pred_labels, pred_boxes) ]
+            outputs = non_max_suppression(detections, score_thres=score_thres, nms_thres=nms_thres) # Removes detections with lower score
 
         sample_metrics += batch_statistics(outputs,
                                 targets,
@@ -198,7 +180,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
     parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
-    parser.add_argument("--weights_path", type=str, default="../weights/20200510_2120_retinanet_weights.pth.tar", help="path to weights file")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200528_2133_retinanet_weights.pth.tar", help="path to weights file")
     # Evaluation parameters
     parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
     parser.add_argument("--score_thres", type=float, default=0.05, help="object confidence threshold")

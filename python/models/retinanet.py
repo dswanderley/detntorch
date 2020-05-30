@@ -192,8 +192,10 @@ class RetinaNet(nn.Module):
             loss =  self.focalLoss(lbl_preds, box_preds, anchors, tgts)
             return { 'box_loss':loss[1], 'cls_los':loss[0] }
         else:
-            # Output as a list
-            detections = []
+            # Output as lists
+            pred_boxes = []
+            pred_classes = []
+            pred_scores = []
 
             # Apply predicted regression to anchors and then clip box values
             transformed_anchors = self.regressBoxes(anchors, box_preds)
@@ -206,7 +208,9 @@ class RetinaNet(nn.Module):
             # no boxes to NMS, just return
             if scores_over_thresh.sum() == 0:
                 for i in range(bs):
-                    detections.append([torch.zeros(0), torch.zeros(0), torch.zeros(0, 4)])
+                    pred_boxes.append(torch.zeros(0))
+                    pred_classes.append(torch.zeros(0))
+                    pred_scores.append(torch.zeros(0))
             else:
                 # Get selected labels by threshold
                 lbl_preds = lbl_preds[:, scores_over_thresh, :]
@@ -216,17 +220,15 @@ class RetinaNet(nn.Module):
                 # Select best candidates
                 for i in range(bs):
                     # Apply non-maximum suppression
-                    #anchors_nms_idx = nms(transformed_anchors[i,:,:], scores[i,:,0], 0.5)
+                    anchors_nms_idx = nms(transformed_anchors[i,:,:], scores[i,:,0], 0.5)
                     # Suppress blocks
-                    #nms_scores, nms_class = lbl_preds[i, anchors_nms_idx, :].max(dim=1) 
-                    nms_scores, nms_class = lbl_preds[i].max(dim=1) 
-                    # Define ouput row
-                    #dtn = [ nms_scores, nms_class, transformed_anchors[i, anchors_nms_idx, :] ]
-                    dtn = [ nms_scores, nms_class, transformed_anchors[i] ]
-                    detections.append(dtn)
+                    nms_scores, nms_class = lbl_preds[i, anchors_nms_idx, :].max(dim=1) 
+                    # Define ouput rows
+                    pred_boxes.append(transformed_anchors[i, anchors_nms_idx, :])
+                    pred_classes.append(nms_class)
+                    pred_scores.append(nms_scores)
 
-            return detections
-
+            return [pred_scores, pred_classes, pred_boxes]
 
 
 if __name__ == "__main__":
