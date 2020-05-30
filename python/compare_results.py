@@ -165,6 +165,8 @@ for pfile in prediction_files:
         false_negative = [ gt_i for gt_i in range(len(gtruth)) if gt_i not in gt_id_list ]
         false_positive = [ dt_i for dt_i in range(len(gt_id_list)) if gt_id_list[dt_i] < 0 ]
         true_positive =  [ gt_i for gt_i in range(len(gtruth)) if gt_i in list(set(gt_id_list)) and gt_i ]
+        im_frr = len(true_positive) / len(gtruth)
+        im_fmr =  len(false_positive) / (len(detect) - len(duplicate)) if len(detect) > 0 else float("inf")
         # Append to count
         model_num_tgt.append(len(gtruth))
         model_num_dtn.append(len(detect))
@@ -184,10 +186,12 @@ for pfile in prediction_files:
             'fp': false_positive,
             'tp': true_positive,
             'duplicates': duplicate,
+            'frr':im_frr,
+            'fmr':im_fmr,
             'precision_mean':precision.mean(),
             'recall_mean':recall.mean(),
             'ap_mean':AP.mean(),
-            'f1_mean':f1.mean()
+            'f1_mean':f1.mean(),
         }
         for i in range(len(ap_class)):
             overall_dict['precision_' + str(i+1)] = precision[i]
@@ -209,7 +213,10 @@ for pfile in prediction_files:
                                                         np.array(model_pred_scores), 
                                                         np.array(model_pred_labels), 
                                                         model_tgt_labels )
-    overall_dict = {
+    frr = model_true_positives.count(1) / sum(model_num_tgt)
+    fmr = model_true_positives.count(0) / (sum(model_num_dtn) - sum(model_num_duplicate))
+
+    model_res_dict = {
         'filename': 'model',
         'num_gt': sum(model_num_tgt),
         'num_detn': sum(model_num_dtn),
@@ -217,39 +224,41 @@ for pfile in prediction_files:
         'num_fp':  model_true_positives.count(0),
         'num_tp': model_true_positives.count(1),
         'num_duplicates': sum(model_num_duplicate),
+        'frr':frr,
+        'fmr':fmr,
         'precision_mean':precision.mean(),
         'recall_mean':recall.mean(),
         'ap_mean':AP.mean(),
-        'f1_mean':f1.mean()
+        'f1_mean':f1.mean(),
     }
     for i in range(len(ap_class)):
-        overall_dict['precision_' + str(i+1)] = precision[i]
-        overall_dict['recall_' + str(i+1)] = recall[i]
-        overall_dict['ap_' + str(i+1)] = AP[i]
-        overall_dict['f1_' + str(i+1)] = f1[i]
-    comparison_ovral.append(overall_dict)
+        model_res_dict['precision_' + str(i+1)] = precision[i]
+        model_res_dict['recall_' + str(i+1)] = recall[i]
+        model_res_dict['ap_' + str(i+1)] = AP[i]
+        model_res_dict['f1_' + str(i+1)] = f1[i]
+    comparison_ovral.append(model_res_dict)
 
     # Save comparisons
     keys_i = comparison_items[0].keys()
-    with open(pfile.replace('results', 'results_comparison'), 'w', newline='') as fp:
+    with open(pfile.replace('results', 'results_by_detection'), 'w', newline='') as fp:
         dict_writer = csv.DictWriter(fp, keys_i, delimiter=';')
         dict_writer.writeheader()
         dict_writer.writerows(comparison_items)
 
     # Save genreal comparisons
     keys_g = comparison_ovral[0].keys()
-    with open(pfile.replace('results', 'results_general'), 'w', newline='') as fp:
+    with open(pfile.replace('results', 'results_by_image'), 'w', newline='') as fp:
         dict_writer = csv.DictWriter(fp, keys_g, delimiter=';')
         dict_writer.writeheader()
         dict_writer.writerows(comparison_ovral)
 
     # Store 
-    overall_dict['filename'] = model_name
-    models_eval.append(overall_dict)
+    model_res_dict['filename'] = model_name
+    models_eval.append(model_res_dict)
 
 # Save models evaluation
 keys_m = models_eval[0].keys()
-with open(os.path.join(predict_path, 'models_results.csv'), 'w', newline='') as fp:
+with open(os.path.join(predict_path, 'results_by_model.csv'), 'w', newline='') as fp:
     dict_writer = csv.DictWriter(fp, keys_m, delimiter=';')
     dict_writer.writeheader()
     dict_writer.writerows(models_eval)
