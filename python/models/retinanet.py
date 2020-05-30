@@ -116,7 +116,7 @@ class RetinaNet(nn.Module):
     '''
         RetinaNet class.
     '''
-    def __init__(self, in_channels=1, num_classes=2, num_features=256, num_anchors=9, pretrained=False):
+    def __init__(self, in_channels=1, num_classes=2, num_features=256, num_anchors=9, pretrained=False, apply_nms=False):
         super(RetinaNet, self).__init__()
         # Parameters
         self.num_classes = num_classes
@@ -124,6 +124,7 @@ class RetinaNet(nn.Module):
         self.num_features = num_features
         self.num_anchors = num_anchors
         self.pretrained = pretrained
+        self.apply_mms = apply_nms
         # Define model blocks
         self.fpn = PyramidFeatures(in_channels=in_channels, num_features=num_features, pretrained=pretrained)
         self.classification = ClassificationModel(in_features=num_features,
@@ -219,14 +220,20 @@ class RetinaNet(nn.Module):
 
                 # Select best candidates
                 for i in range(bs):
-                    # Apply non-maximum suppression
-                    anchors_nms_idx = nms(transformed_anchors[i,:,:], scores[i,:,0], 0.5)
-                    # Suppress blocks
-                    nms_scores, nms_class = lbl_preds[i, anchors_nms_idx, :].max(dim=1) 
-                    # Define ouput rows
-                    pred_boxes.append(transformed_anchors[i, anchors_nms_idx, :])
-                    pred_classes.append(nms_class)
-                    pred_scores.append(nms_scores)
+                    if self.apply_mms:
+                        # Apply non-maximum suppression
+                        anchors_nms_idx = nms(transformed_anchors[i,:,:], scores[i,:,0], 0.5)
+                        # Suppress blocks
+                        nms_scores, nms_class = lbl_preds[i, anchors_nms_idx, :].max(dim=1)
+                        # Define ouput rows
+                        pred_boxes.append(transformed_anchors[i, anchors_nms_idx, :])
+                        pred_classes.append(nms_class)
+                        pred_scores.append(nms_scores)
+                    else:
+                        _scores, _class = lbl_preds[i, :, :].max(dim=1)
+                        pred_boxes.append(transformed_anchors[i, :, :])
+                        pred_classes.append(_class)
+                        pred_scores.append(_scores)
 
             return [pred_scores, pred_classes, pred_boxes]
 
