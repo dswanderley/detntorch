@@ -33,16 +33,24 @@ def get_backbone(name, pretrained=True):
         raise NotImplemented('{} backbone model is not implemented so far.'.format(name))
 
     # specifying skip feature and output names
-    if name.startswith('resnet'):
-        feature_names = [None, 'relu', 'layer1', 'layer2', 'layer3']
-        backbone_output = 'layer4'
-    elif name.startswith('resnext'):
-        feature_names = [None, 'relu', 'layer1', 'layer2', 'layer3']
-        backbone_output = 'layer4'
+    if name.startswith('resnet18') or name.startswith('resnet34'):
+        feature_sizes = [   backbone.conv1.out_channels,
+                            backbone.layer1[-1].conv2.out_channels,
+                            backbone.layer2[-1].conv2.out_channels,
+                            backbone.layer3[-1].conv2.out_channels,
+                            backbone.layer4[-1].conv2.out_channels  ]
+        feature_names = ['relu', 'layer1', 'layer2', 'layer3', 'layer4']
+    elif name.startswith('resnet') or name.startswith('resnext'):
+        feature_sizes = [   backbone.conv1.out_channels,
+                            backbone.layer1[-1].conv3.out_channels,
+                            backbone.layer2[-1].conv3.out_channels,
+                            backbone.layer3[-1].conv3.out_channels,
+                            backbone.layer4[-1].conv3.out_channels ]
+        feature_names = ['relu', 'layer1', 'layer2', 'layer3', 'layer4']    
     else:
         raise NotImplemented('{} backbone model is not implemented so far.'.format(name))
 
-    return backbone, feature_names, backbone_output
+    return backbone, feature_sizes, feature_names
 
 
 class ResNetBackbone(nn.Module):
@@ -60,7 +68,7 @@ class ResNetBackbone(nn.Module):
             self.conv0.weight.data.fill_(1/in_channels)
         self.relu = nn.ReLU(inplace=True)
         # load backbone
-        backbone, shortcut_features, bb_out_name = get_backbone(backbone_model, pretrained=pretrained)
+        backbone, feature_sizes, _ = get_backbone(backbone_model, pretrained=pretrained)
         # backbone input conv
         self.conv1 = backbone.conv1
         self.bn1 = backbone.bn1
@@ -75,9 +83,7 @@ class ResNetBackbone(nn.Module):
         # Sequence 4
         self.layer4 = backbone.layer4
         # Output features
-        self.fpn_sizes = [self.layer2[- 1].conv3.out_channels,
-                          self.layer3[- 1].conv3.out_channels,
-                          self.layer4[- 1].conv3.out_channels]
+        self.fpn_sizes = feature_sizes[-3:]
         # Load weigths
         if pretrained:
             self.conv1.load_state_dict(backbone.conv1.state_dict())
@@ -161,7 +167,7 @@ class PyramidFeatures(nn.Module):
 if __name__ == "__main__":
     from torch.autograd import Variable
 
-    net = PyramidFeatures(in_channels=1)
+    net = PyramidFeatures(in_channels=1, backbone_name='resnext50')
     preds = net( Variable( torch.randn(2,1,512,512) ) )
 
     for p in preds:
