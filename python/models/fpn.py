@@ -23,11 +23,20 @@ def get_backbone(name, pretrained=True):
         backbone = models.resnet34(pretrained=pretrained)
     elif name == 'resnet50':
         backbone = models.resnet50(pretrained=pretrained)
+    elif name == 'resnet101':
+        backbone = models.resnet101(pretrained=pretrained)
+    elif name == 'resnext50':
+        backbone = models.resnext50_32x4d(pretrained=pretrained)
+    elif name == 'resnext101':
+        backbone = models.resnext101_32x8d(pretrained=pretrained)
     else:
         raise NotImplemented('{} backbone model is not implemented so far.'.format(name))
 
     # specifying skip feature and output names
     if name.startswith('resnet'):
+        feature_names = [None, 'relu', 'layer1', 'layer2', 'layer3']
+        backbone_output = 'layer4'
+    elif name.startswith('resnext'):
         feature_names = [None, 'relu', 'layer1', 'layer2', 'layer3']
         backbone_output = 'layer4'
     else:

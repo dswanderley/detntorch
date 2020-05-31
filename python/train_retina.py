@@ -234,10 +234,11 @@ if __name__ == "__main__":
     parser.add_argument("--num_epochs", type=int, default=150, help="number of training epochs")
     parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
-    parser.add_argument("--apply_nms", type=bool, default=True, help="apply internal non-maximum suppress during inference")
+    parser.add_argument("--apply_nms", type=bool, default=False, help="apply internal non-maximum suppress during inference")
+    parser.add_argument("--backbone", type=str, default="resnet50", help="the network backbone, options: resnet18, resnet34 or resnet50 (default: resnet50)")
     # Evaluation parameters
     parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
-    parser.add_argument("--score_thres", type=float, default=0.3, help="object score threshold")
+    parser.add_argument("--score_thres", type=float, default=0.4, help="object score threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
 
     opt = parser.parse_args()
@@ -251,14 +252,15 @@ if __name__ == "__main__":
     n_epochs = opt.num_epochs
     batch_size = opt.batch_size
     input_channels = opt.num_channels
-    network_name = 'retinanet'
+    network_name = 'retinanet_' + opt.backbone
     train_name = gettrainname(network_name)
 
     # Load CUDA if exist
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Load network model
-    model = RetinaNet(in_channels=input_channels, num_classes=n_classes, pretrained=True, opt.apply_nms).to(device)
+    model = RetinaNet(in_channels=input_channels, num_classes=n_classes, backbone_name=opt.backbone,
+                        pretrained=True, apply_nms=opt.apply_nms).to(device)
     #model = torch.nn.DataParallel(model).to(device)
 
     # Transformation parameters
