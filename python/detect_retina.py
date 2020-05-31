@@ -35,10 +35,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     # Network parameters
-    parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
     parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
     parser.add_argument("--weights_path", type=str, default="../weights/20200528_1939_retinanet_weights.pth.tar", help="path to weights file")
+    parser.add_argument("--apply_nms", type=bool, default=False, help="apply internal non-maximum suppress during inference")
     # Evaluation parameters
     parser.add_argument("--score_thres", type=float, default=0.5, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
@@ -46,6 +46,8 @@ if __name__ == "__main__":
 
     opt = parser.parse_args()
     print(opt)
+
+    batch_size = 1 # MANDATORY not working correctly with different batch size
 
     # Classes names
     class_names = ['background','follicle','ovary']
@@ -69,7 +71,7 @@ if __name__ == "__main__":
                            out_tuple=True)
 
     dataloader = DataLoader(dataset,
-                            batch_size=opt.batch_size,
+                            batch_size=batch_size,
                             shuffle=False,
                             collate_fn=dataset.collate_fn_rcnn)
 
@@ -77,7 +79,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Initiate model
-    model = RetinaNet(in_channels=opt.num_channels, num_classes=n_classes, pretrained=True).to(device)
+    model = RetinaNet(in_channels=opt.num_channels, num_classes=n_classes, pretrained=True, apply_nms=opt.apply_nms).to(device)
     if weights_path is not None:
         # Load state dictionary
         state = torch.load(weights_path)
