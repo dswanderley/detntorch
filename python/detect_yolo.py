@@ -26,8 +26,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     # Network parameters
-    parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
-    parser.add_argument("--weights_path", type=str, default="../weights/20200419_1419_yolov3_weights.pth.tar", help="path to weights file")
+    #parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200512_2122_yolov3_weights.pth.tar", help="path to weights file")
     parser.add_argument("--model_name", type=str, default="yolov3", help="newtork model file")
     # Evaluation parameters
     parser.add_argument("--conf_thres", type=float, default=0.8, help="object confidence threshold")
@@ -40,7 +40,7 @@ if __name__ == "__main__":
     class_names = ['background','follicle','ovary']
 
     # Input parameters
-    batch_size = opt.batch_size
+    batch_size = 1#opt.batch_size
     weights_path = opt.weights_path
     mode_config_path = 'config/'+ opt.model_name + '.cfg'
     # Get network name
@@ -78,7 +78,7 @@ if __name__ == "__main__":
                            out_tuple=True)
 
     dataloader = DataLoader(dataset,
-                        batch_size=opt.batch_size,
+                        batch_size=batch_size,
                         shuffle=False,
                         collate_fn=dataset.collate_fn_yolo)
 
@@ -87,7 +87,8 @@ if __name__ == "__main__":
     imgs = []  # Stores image paths
     img_detections = []  # Stores detections for each image index
     table = [] # Table of content
-    table.append(['fname', 'img_idx', 'bb_idx', 'cls_pred', 'cls_conf', 'conf', 'x1', 'y1', 'x2', 'y2'])
+    table.append(['fname', 'img_idx', 'bb_idx', 'cls_pred', 'cls_conf', 'conf', 'x1', 'y1', 'x2', 'y2', 'time'])
+    inf_times = []
 
     print("\nPerforming object detection:")
     prev_time = time.time()
@@ -105,6 +106,7 @@ if __name__ == "__main__":
         inference_time = datetime.timedelta(seconds=current_time - prev_time)
         prev_time = current_time
         print("\t+ Batch %d, Inference Time: %s" % (batch_i, inference_time))
+        inf_times.append(str(inference_time))
 
         # Save image and detections
         imgs.extend(img_paths)
@@ -145,7 +147,8 @@ if __name__ == "__main__":
                 # Add data to table
                 table.append([fname, str(img_i + 1), str(bb_idx + 1),
                                 class_names[int(cls_pred.item())], str(cls_conf.item()), str(conf.item()),
-                                str(x1.item()), str(y1.item()), str(x2.item()), str(y2.item())])
+                                str(x1.item()), str(y1.item()), str(x2.item()), str(y2.item()),
+                                inf_times[img_i]])
 
                 print("\t+ Label: %s, Conf: %.5f" % (class_names[int(cls_pred)], cls_conf.item()))
 

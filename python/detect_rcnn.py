@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     # Network parameters
-    parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
+    #parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
     parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
     parser.add_argument("--weights_path", type=str, default="../weights/20200512_1958_faster_rcnn_weights.pth.tar", help="path to weights file")
@@ -51,6 +51,7 @@ if __name__ == "__main__":
     class_names = ['background','follicle','ovary']
 
     # Get data configuration
+    batch_size = 1
     n_classes = opt.num_classes
     weights_path  = opt.weights_path
     im_path = '../datasets/ovarian/im/test/'
@@ -69,7 +70,7 @@ if __name__ == "__main__":
                            out_tuple=True)
 
     dataloader = DataLoader(dataset,
-                            batch_size=opt.batch_size,
+                            batch_size=batch_size,
                             shuffle=False,
                             collate_fn=dataset.collate_fn_rcnn)
 
@@ -88,7 +89,8 @@ if __name__ == "__main__":
     img_names = []  # Stores image paths
     img_detections = []  # Stores detections for each image index
     table = [] # Table of content
-    table.append(['fname', 'img_idx', 'bb_idx', 'labels', 'scores', 'x1', 'y1', 'x2', 'y2'])
+    table.append(['fname', 'img_idx', 'bb_idx', 'labels', 'scores', 'x1', 'y1', 'x2', 'y2', 'time'])
+    inf_times = []
 
     print("\nPerforming object detection:")
     prev_time = time.time()
@@ -110,6 +112,7 @@ if __name__ == "__main__":
         inference_time = datetime.timedelta(seconds=current_time - prev_time)
         prev_time = current_time
         print("\t+ Batch %d, Inference Time: %s" % (batch_i, inference_time))
+        inf_times.append(str(inference_time))
 
         # Save image and detections
         img_names.extend(names)
@@ -153,7 +156,8 @@ if __name__ == "__main__":
                     # Add data to table
                     table.append([fname, str(img_i + 1), str(idx + 1),
                                 class_names[int(cls_pred.item())], str(score.item()),
-                                str(x1.item()), str(y1.item()), str(x2.item()), str(y2.item())])
+                                str(x1.item()), str(y1.item()), str(x2.item()), str(y2.item()),
+                                inf_times[img_i]])
 
                     print("\t+ Label: %s, Score: %.5f" % (class_names[int(cls_pred)], score.item()))
 

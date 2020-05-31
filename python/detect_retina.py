@@ -37,22 +37,22 @@ if __name__ == "__main__":
     # Network parameters
     parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
-    parser.add_argument("--weights_path", type=str, default="../weights/20200528_1939_retinanet_weights.pth.tar", help="path to weights file")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200530_1030_retinanet_weights.pth.tar", help="path to weights file")
     parser.add_argument("--apply_nms", type=bool, default=False, help="apply internal non-maximum suppress during inference")
     # Evaluation parameters
-    parser.add_argument("--score_thres", type=float, default=0.5, help="object confidence threshold")
+    parser.add_argument("--score_thres", type=float, default=0.4, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
     parser.add_argument("--save_img", type=bool, default=False, help="save images with bouding box")
 
     opt = parser.parse_args()
     print(opt)
 
-    batch_size = 1 # MANDATORY not working correctly with different batch size
-
+    
     # Classes names
     class_names = ['background','follicle','ovary']
 
     # Get data configuration
+    batch_size = 1 # MANDATORY not working correctly with different batch size
     n_classes = opt.num_classes
     weights_path  = opt.weights_path
     im_path = '../datasets/ovarian/im/test/'
@@ -62,6 +62,7 @@ if __name__ == "__main__":
     networkname = networkname.split('.')[0]
     if ('_weights' in networkname):
         networkname = networkname.replace('_weights', '')
+    networkname += '_' + str(int(opt.score_thres*100)) + '_' + str(opt.apply_nms)
 
     # Dataset
     dataset = OvaryDataset(im_dir=im_path,
@@ -90,7 +91,8 @@ if __name__ == "__main__":
     img_names = []  # Stores image paths
     img_detections = []  # Stores detections for each image index
     table = [] # Table of content
-    table.append(['fname', 'img_idx', 'bb_idx', 'labels', 'scores', 'x1', 'y1', 'x2', 'y2'])
+    table.append(['fname', 'img_idx', 'bb_idx', 'labels', 'scores', 'x1', 'y1', 'x2', 'y2', 'time'])
+    inf_times = []
 
     print("\nPerforming object detection:")
     prev_time = time.time()
@@ -114,6 +116,7 @@ if __name__ == "__main__":
         inference_time = datetime.timedelta(seconds=current_time - prev_time)
         prev_time = current_time
         print("\t+ Batch %d, Inference Time: %s" % (batch_i, inference_time))
+        inf_times.append(str(inference_time))
 
         # Save image and detections
         img_names.extend(names)
@@ -157,7 +160,8 @@ if __name__ == "__main__":
                     # Add data to table
                     table.append([fname, str(img_i + 1), str(idx + 1), 
                                 class_names[int(cls_pred.item())], str(cls_conf.item()), 
-                                str(x1.item()), str(y1.item()), str(x2.item()), str(y2.item())])
+                                str(x1.item()), str(y1.item()), str(x2.item()), str(y2.item()),
+                                inf_times[img_i]])
 
                     print("\t+ Label: %s, Conf: %.5f" % (class_names[int(cls_pred)], cls_conf.item()))
 
