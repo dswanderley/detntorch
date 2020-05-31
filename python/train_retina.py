@@ -234,6 +234,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_epochs", type=int, default=150, help="number of training epochs")
     parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
+    parser.add_argument("--apply_nms", type=bool, default=True, help="apply internal non-maximum suppress during inference")
     # Evaluation parameters
     parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
     parser.add_argument("--score_thres", type=float, default=0.3, help="object score threshold")
@@ -257,7 +258,7 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Load network model
-    model = RetinaNet(in_channels=input_channels, num_classes=n_classes, pretrained=True).to(device)
+    model = RetinaNet(in_channels=input_channels, num_classes=n_classes, pretrained=True, opt.apply_nms).to(device)
     #model = torch.nn.DataParallel(model).to(device)
 
     # Transformation parameters
