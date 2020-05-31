@@ -39,6 +39,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
     parser.add_argument("--weights_path", type=str, default="../weights/20200530_1030_retinanet_weights.pth.tar", help="path to weights file")
     parser.add_argument("--apply_nms", type=bool, default=False, help="apply internal non-maximum suppress during inference")
+    parser.add_argument("--backbone", type=str, default="resnet50", help="the network backbone, options: resnet18, resnet34 or resnet50 (default: resnet50)")
     # Evaluation parameters
     parser.add_argument("--score_thres", type=float, default=0.4, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
@@ -80,7 +81,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Initiate model
-    model = RetinaNet(in_channels=opt.num_channels, num_classes=n_classes, pretrained=True, apply_nms=opt.apply_nms).to(device)
+    model = RetinaNet(in_channels=opt.num_channels, num_classes=n_classes, backbone_name=opt.backbone, pretrained=True, apply_nms=opt.apply_nms).to(device)
     if weights_path is not None:
         # Load state dictionary
         state = torch.load(weights_path)
