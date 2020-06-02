@@ -179,7 +179,7 @@ if __name__ == "__main__":
     # Network parameters
     parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
     parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
-    parser.add_argument("--weights_path", type=str, default="../weights/20200528_2133_retinanet_weights.pth.tar", help="path to weights file")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200531_1728_retinanet_resnet50_weights.pth.tar", help="path to weights file")
     parser.add_argument("--apply_nms", type=bool, default=False, help="apply internal non-maximum suppress during inference")
     parser.add_argument("--backbone", type=str, default="resnet50", help="the network backbone, options: resnet18, resnet34 or resnet50 (default: resnet50)")
     # Evaluation parameters
