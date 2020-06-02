@@ -96,15 +96,24 @@ if __name__ == "__main__":
         # Configure input
         input_imgs = Variable(input_imgs.type(Tensor))
 
-        # Get detections
-        with torch.no_grad():
-            detections = model(input_imgs)
-            detections = non_max_suppression(detections, opt.conf_thres, opt.nms_thres)
-
-        # Log progress
-        current_time = time.time()
-        inference_time = datetime.timedelta(seconds=current_time - prev_time)
-        prev_time = current_time
+        # Run inference
+        successful = False
+        repetitions = 0
+        # Repeat first batch to get accurated processing time
+        while not successful:
+            # Get detections
+            with torch.no_grad():
+                detections = model(input_imgs)
+                detections = non_max_suppression(detections, opt.conf_thres, opt.nms_thres)
+                
+            # Log progress
+            current_time = time.time()
+            inference_time = datetime.timedelta(seconds=current_time - prev_time)
+            prev_time = current_time
+            # Check if is not the first time of the first batch
+            successful =  batch_i > 0 or repetitions > 0
+            repetitions += 1
+ 
         print("\t+ Batch %d, Inference Time: %s" % (batch_i, inference_time))
         inf_times.append(str(inference_time))
 

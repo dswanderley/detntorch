@@ -105,17 +105,27 @@ if __name__ == "__main__":
         targets = [{ 'boxes':  tgt['boxes'].to(device),'labels': tgt['labels'].to(device) } 
                     for tgt in targets]
 
-        # Get detections
-        with torch.no_grad():
-            pred_scores, pred_labels, pred_boxes =  model(images) # pred_scores, pred_class, pred_boxes    
-            detections = [ { 'boxes':box, 'labels':lbl, 'scores':sc } 
-                            for sc, lbl, box in zip(pred_scores, pred_labels, pred_boxes) ]
-            detections = non_max_suppression(detections, opt.score_thres, opt.nms_thres) # Removes detections with lower score 
+        
+        # Run inference
+        successful = False
+        repetitions = 0
+        # Repeat first batch to get accurated processing time
+        while not successful:
+            # Get detections
+            with torch.no_grad():
+                pred_scores, pred_labels, pred_boxes =  model(images) # pred_scores, pred_class, pred_boxes    
+                detections = [ { 'boxes':box, 'labels':lbl, 'scores':sc } 
+                                for sc, lbl, box in zip(pred_scores, pred_labels, pred_boxes) ]
+                detections = non_max_suppression(detections, opt.score_thres, opt.nms_thres) # Removes detections with lower score 
 
-        # Log progress
-        current_time = time.time()
-        inference_time = datetime.timedelta(seconds=current_time - prev_time)
-        prev_time = current_time
+            # Log progress
+            current_time = time.time()
+            inference_time = datetime.timedelta(seconds=current_time - prev_time)
+            prev_time = current_time
+            # Check if is not the first time of the first batch
+            successful =  batch_i > 0 or repetitions > 0
+            repetitions += 1
+ 
         print("\t+ Batch %d, Inference Time: %s" % (batch_i, inference_time))
         inf_times.append(str(inference_time))
 
