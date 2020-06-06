@@ -43,8 +43,7 @@ for dname, fname in zip(dataset_names, dataset_folder):
     path_im = dataset_path + '/im/' + fname + '/'
     path_gt = path_im.replace('/im/', '/gt/')
     # pre-set dataset
-    dataset = OvaryDataset(im_dir=path_im,gt_dir=path_gt,
-                        ovary_inst=False, out_tuple=True)
+    dataset = OvaryDataset(im_dir=path_im,gt_dir=path_gt,ovary_inst=True)
     # define pytorch data loader
     data_loader = DataLoader(dataset, batch_size=1, shuffle=False,
                             collate_fn=dataset.collate_fn_rcnn)
