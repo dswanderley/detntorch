@@ -188,7 +188,11 @@ if __name__ == "__main__":
                         verticalalignment="top",
                         bbox={"color":"white", "alpha":.1, "pad": 0}
                     )
-
+        else:
+            table.append([fname, str(img_i + 1), '0',
+                        '', '', '', '', '','',
+                        inf_times[img_i]])
+                        
         # Save generated image with detections
         plt.axis("off")
         plt.gca().xaxis.set_major_locator(NullLocator())
