@@ -74,7 +74,7 @@ for pfile in prediction_files:
     # Convert list of detection to a list of dictionary by filename
     [ predictions[p_data['fname']].append(p_data) for p_data in detections if p_data['fname'] in testset_names ]
     comparison_items = []
-    comparison_ovral = []
+    comparison_images = []
 
     # Set of data for all images evaluates with this model
     model_true_positives = []
@@ -85,6 +85,7 @@ for pfile in prediction_files:
     model_num_dtn = []
     model_num_fn = []
     model_num_duplicate = []
+    model_inference_time = []
     
     # Iterate filenames
     for fname in testset_names:
@@ -98,10 +99,13 @@ for pfile in prediction_files:
         pred_scores_list = []
         pred_lbls_list = []
         gt_lbls_list = [ class_names.index(gt['class']) for gt in gtruth ]
+        im_inference_time = ''
 
         # Iterate image detections 
         for d in range(len(detect)):
             dtn = detect[d]
+            if d == 0:
+                im_inference_time = dtn['time']
             score = dtn['scores'] if 'scores' in dtn else dtn['cls_conf']
             box_dt = torch.tensor([ float(dtn['x1']), float(dtn['y1']), float(dtn['x2']), float(dtn['y2']) ])
             box_center = ( (box_dt[0] + box_dt[2]) / 2, (box_dt[1] + box_dt[3]) / 2)
@@ -136,8 +140,6 @@ for pfile in prediction_files:
             iou_list.append(best_iou)
             pred_scores_list.append(float(score))
             pred_lbls_list.append(class_names.index(dtn[lbl_key]))
-            
-        
     
         # Check for duplicated (when NMS fail)
         duplicate = []
@@ -147,7 +149,7 @@ for pfile in prediction_files:
                     if iou_list[j] > iou_list[i]:
                         duplicate.append(i)
                         break
-
+        # Delete duplicate data
         for d in reversed(duplicate):
             detect[d]['status']='DP'
             del pred_tp_list[d]
@@ -192,6 +194,7 @@ for pfile in prediction_files:
             'recall_mean':recall.mean(),
             'ap_mean':AP.mean(),
             'f1_mean':f1.mean(),
+            'time': im_inference_time
         }
         for i in range(len(ap_class)):
             overall_dict['precision_' + str(i+1)] = precision[i]
@@ -201,12 +204,14 @@ for pfile in prediction_files:
 
         # Store on a list with all detections of all files
         comparison_items += detect
-        comparison_ovral.append(overall_dict)
+        comparison_images.append(overall_dict)
         # Add to mode evaluation list
         model_true_positives += pred_tp_list
         model_pred_scores    += pred_scores_list
         model_pred_labels    += pred_lbls_list
         model_tgt_labels     += gt_lbls_list
+        if im_inference_time:
+            model_inference_time.append( float(im_inference_time.split(':')[-1]) )
 
     # Evaluate model
     precision, recall, AP, f1, ap_class = ap_per_class( np.array(model_true_positives), 
@@ -215,7 +220,8 @@ for pfile in prediction_files:
                                                         model_tgt_labels )
     frr = model_true_positives.count(1) / sum(model_num_tgt)
     fmr = model_true_positives.count(0) / (sum(model_num_dtn) - sum(model_num_duplicate))
-
+    model_avg_time = sum(model_inference_time)/len(model_inference_time)
+    
     model_res_dict = {
         'filename': 'model',
         'num_gt': sum(model_num_tgt),
@@ -230,13 +236,14 @@ for pfile in prediction_files:
         'recall_mean':recall.mean(),
         'ap_mean':AP.mean(),
         'f1_mean':f1.mean(),
+        'time': model_avg_time,
     }
     for i in range(len(ap_class)):
         model_res_dict['precision_' + str(i+1)] = precision[i]
         model_res_dict['recall_' + str(i+1)] = recall[i]
         model_res_dict['ap_' + str(i+1)] = AP[i]
         model_res_dict['f1_' + str(i+1)] = f1[i]
-    comparison_ovral.append(model_res_dict)
+    comparison_images.append(model_res_dict)
 
     # Save comparisons
     keys_i = comparison_items[0].keys()
@@ -246,11 +253,11 @@ for pfile in prediction_files:
         dict_writer.writerows(comparison_items)
 
     # Save genreal comparisons
-    keys_g = comparison_ovral[0].keys()
+    keys_g = comparison_images[0].keys()
     with open(pfile.replace('results', 'results_by_image'), 'w', newline='') as fp:
         dict_writer = csv.DictWriter(fp, keys_g, delimiter=';')
         dict_writer.writeheader()
-        dict_writer.writerows(comparison_ovral)
+        dict_writer.writerows(comparison_images)
 
     # Store 
     model_res_dict['filename'] = model_name
