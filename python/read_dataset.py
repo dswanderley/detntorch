@@ -34,7 +34,8 @@ data_table = [table_header]
 # Bounding-box colors
 cmap = plt.get_cmap("tab20b")
 colormap = [cmap(i) for i in np.linspace(0, 1, 20)]
-colors = random.sample(colormap, len(dataset_names))
+# colors = random.sample(colormap, len(dataset_names))
+colors = [ colormap[1], colormap[6], colormap[14] ]
 
 # Read datasets
 for dname, fname in zip(dataset_names, dataset_folder):
@@ -54,7 +55,7 @@ for dname, fname in zip(dataset_names, dataset_folder):
             filename = names[i]
             full_path = os.path.join(path_im, filename)
             # Create plot
-            img = np.array(Image.open(full_path))
+            img = np.array(Image.open(full_path).convert('RGB')) # Convert to RGB to save the image with original grayscale colormap
             plt.figure()
             fig, ax = plt.subplots(1)
             ax.imshow(img)
