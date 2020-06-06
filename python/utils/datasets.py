@@ -30,7 +30,7 @@ class OvaryDataset(Dataset):
 
     def __init__(self, im_dir='im', gt_dir='gt',
             one_hot=True, clahe=False,
-            ovary_inst=False, transform=None, out_tuple=True):
+            ovary_inst=False, transform=None):
         """
         Args:
             im_dir (string): Directory with all the images.
@@ -41,8 +41,6 @@ class OvaryDataset(Dataset):
                 as an instance.
             transform (callable, optional): Optional transform to be applied
                 on a sample.
-            out_tuple (bool, optional): Return a Tuple with all data or an object
-                with labes - default is False.
         """
         self.im_dir = im_dir
         self.gt_dir = gt_dir
@@ -50,9 +48,8 @@ class OvaryDataset(Dataset):
         self.clahe = clahe
         self.one_hot = one_hot
         self.ovary_instance = ovary_inst
-        self.out_tuple = out_tuple
 
-         # Output encod accepts two types: one-hot-encoding or gray scale levels
+        # Output encod accepts two types: one-hot-encoding or gray scale levels
         # Variable encods contains a list of each data encoding:
         # 1) Full GT mask, 2) Ovary mask, 3) Follicle mask
         if type(self.one_hot) is list:      # When a list is provided
@@ -66,9 +63,6 @@ class OvaryDataset(Dataset):
             self.encods = [self.one_hot, self.one_hot, self.one_hot, self.one_hot]
         else:
             self.encods = [True, True, True, True]
-
-        if self.out_tuple is False:
-            self.encods[3] = False
 
         ldir_im = set(x for x in os.listdir(self.im_dir))
         ldir_gt = set(x for x in os.listdir(self.gt_dir))
@@ -280,29 +274,9 @@ class OvaryDataset(Dataset):
         labels = torch.LongTensor(labels)
         masks = torch.from_numpy(masks)
 
-        # Return tuple
-        if self.out_tuple:
-            return  im_name, torch_im, \
+        return  im_name, torch_im, \
                     torch_gt, torch_ov, torch_fol, torch_edge, \
                     torch_is, num_inst, boxes, labels, masks
-
-        # Return tensors
-        else:
-            sample =  { 'im_name': im_name,
-                        'image': torch_im,
-                        'gt_mask': torch_gt,
-                        'ovary_mask': torch_ov,
-                        'follicle_mask': torch_fol,
-                        'follicle_edge': torch_edge,
-                        'follicle_instances': torch_is,
-                        'num_follicles':  num_inst,
-                        'targets': {
-                                    'boxes': boxes,
-                                    'labels': labels,
-                                    'masks': masks
-                                }
-                        }
-            return sample
 
 
     def collate_fn_list(self, batch):
@@ -465,8 +439,7 @@ if __name__ == '__main__':
     dataset = OvaryDataset(im_dir=path_im,
                            gt_dir=path_gt,
                            clahe=False, transform=False,
-                           ovary_inst=True,
-                           out_tuple=True)
+                           ovary_inst=True)
     # Loader
     data_loader = DataLoader(dataset, batch_size=4, shuffle=True,
                                     collate_fn=dataset.collate_fn_rcnn)

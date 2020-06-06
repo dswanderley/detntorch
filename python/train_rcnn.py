@@ -265,7 +265,8 @@ if __name__ == "__main__":
     cls_names = ['background','follicle','ovary']
 
     # Input parameters
-    n_classes = opt.num_classes
+    n_classes = opt.num_classes    
+    has_ovary = True if n_classes > 2 else False
     n_epochs = opt.num_epochs
     batch_size = opt.batch_size
     input_channels = opt.num_channels
@@ -289,13 +290,11 @@ if __name__ == "__main__":
     dataset_train = OvaryDataset(im_dir='../datasets/ovarian/im/train/',
                            gt_dir='../datasets/ovarian/gt/train/',
                            clahe=False, transform=transform,
-                           ovary_inst=False,
-                           out_tuple=True)
+                           ovary_inst=has_ovary)
     dataset_val = OvaryDataset(im_dir='../datasets/ovarian/im/val/',
                            gt_dir='../datasets/ovarian/gt/val/',
                            clahe=False, transform=False,
-                           ovary_inst=False,
-                           out_tuple=True)
+                           ovary_inst=has_ovary)
 
     # Optmization
     #optimizer = optim.Adam(model.parameters(), lr=0.001)

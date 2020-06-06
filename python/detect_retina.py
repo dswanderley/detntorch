@@ -47,7 +47,6 @@ if __name__ == "__main__":
 
     opt = parser.parse_args()
     print(opt)
-
     
     # Classes names
     class_names = ['background','follicle','ovary']
@@ -59,6 +58,7 @@ if __name__ == "__main__":
     # Get data configuration
     batch_size = 1 # MANDATORY not working correctly with different batch size
     n_classes = opt.num_classes
+    has_ovary = True if n_classes > 2 else False
     weights_path  = opt.weights_path
     im_path = '../datasets/ovarian/im/test/'
     gt_path = '../datasets/ovarian/gt/test/'
@@ -73,8 +73,7 @@ if __name__ == "__main__":
     dataset = OvaryDataset(im_dir=im_path,
                            gt_dir=gt_path,
                            clahe=False, transform=False,
-                           ovary_inst=False,
-                           out_tuple=True)
+                           ovary_inst=has_ovary)
 
     dataloader = DataLoader(dataset,
                             batch_size=batch_size,

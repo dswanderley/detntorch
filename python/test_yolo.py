@@ -106,6 +106,8 @@ if __name__ == "__main__":
     class_names = ['background','follicle','ovary']
 
     # Input parameters
+    n_classes = 2
+    has_ovary = True if n_classes > 2 else False
     batch_size = opt.batch_size
     weights_path = opt.weights_path
     network_name = opt.model_name
@@ -119,8 +121,7 @@ if __name__ == "__main__":
     dataset = OvaryDataset(im_dir='../datasets/ovarian/im/test/',
                            gt_dir='../datasets/ovarian/gt/test/',
                            clahe=False, transform=False,
-                           ovary_inst=False,
-                           out_tuple=True)
+                           ovary_inst=has_ovary)
     data_loader = DataLoader(dataset,
                             batch_size=opt.batch_size,
                             shuffle=False,

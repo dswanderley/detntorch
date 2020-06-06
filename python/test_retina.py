@@ -198,14 +198,15 @@ if __name__ == "__main__":
 
     # Get data configuration
     n_classes = opt.num_classes
+    has_ovary = True if n_classes > 2 else False
+
     weights_path  = opt.weights_path
 
     # Dataset
     dataset = OvaryDataset(im_dir='../datasets/ovarian/im/test/',
                            gt_dir='../datasets/ovarian/gt/test/',
                            clahe=False, transform=False,
-                           ovary_inst=False,
-                           out_tuple=True)
+                           ovary_inst=has_ovary)
     data_loader = DataLoader(dataset,
                             batch_size=batch_size,
                             shuffle=False,

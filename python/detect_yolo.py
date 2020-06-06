@@ -45,6 +45,8 @@ if __name__ == "__main__":
 
     # Input parameters
     batch_size = 1#opt.batch_size
+    n_classes = 2
+    has_ovary = True if n_classes > 2 else False
     weights_path = opt.weights_path
     mode_config_path = 'config/'+ opt.model_name + '.cfg'
     # Get network name
@@ -78,8 +80,7 @@ if __name__ == "__main__":
     dataset = OvaryDataset(im_dir=path,
                            gt_dir=path_gt,
                            clahe=False, transform=False,
-                           ovary_inst=False,
-                           out_tuple=True)
+                           ovary_inst=has_ovary)
 
     dataloader = DataLoader(dataset,
                         batch_size=batch_size,

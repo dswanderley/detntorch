@@ -273,6 +273,7 @@ if __name__ == "__main__":
 
     # Input parameters
     n_classes = 2
+    has_ovary = True if n_classes > 2 else False
     n_epochs = opt.num_epochs
     batch_size = opt.batch_size
     network_name = opt.model_name
@@ -296,13 +297,11 @@ if __name__ == "__main__":
     dataset_train = OvaryDataset(im_dir='../datasets/ovarian/im/train/',
                            gt_dir='../datasets/ovarian/gt/train/',
                            clahe=False, transform=transform,
-                           ovary_inst=False,
-                           out_tuple=True)
+                           ovary_inst=has_ovary)
     dataset_val = OvaryDataset(im_dir='../datasets/ovarian/im/val/',
                            gt_dir='../datasets/ovarian/gt/val/',
                            clahe=False, transform=False,
-                           ovary_inst=False,
-                           out_tuple=True)
+                           ovary_inst=has_ovary)
 
     # Optmization
     optimizer = optim.Adam(model.parameters())
