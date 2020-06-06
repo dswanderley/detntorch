@@ -51,6 +51,10 @@ if __name__ == "__main__":
     
     # Classes names
     class_names = ['background','follicle','ovary']
+    # Bounding-box colors
+    cmap = plt.get_cmap("tab20b")
+    colors = [cmap(i) for i in np.linspace(0, 1, 20)]
+    bbox_colors = [ colormap[1], colormap[6], colormap[14] ]
 
     # Get data configuration
     batch_size = 1 # MANDATORY not working correctly with different batch size
@@ -133,10 +137,6 @@ if __name__ == "__main__":
         img_names.extend(names)
         img_detections.extend(detections)
 
-    # Bounding-box colors
-    cmap = plt.get_cmap("tab20b")
-    colors = [cmap(i) for i in np.linspace(0, 1, 20)]
-
     # Save images stage
     print("\nSaving images:")
     outfolder = "../predictions/retina/" + networkname + '/'
@@ -161,7 +161,7 @@ if __name__ == "__main__":
         if detections['boxes'] is not None:
             unique_labels = detections['labels'].cpu().unique()
             n_cls_preds = len(unique_labels)
-            bbox_colors = random.sample(colors, n_cls_preds)
+            #bbox_colors = random.sample(colors, n_cls_preds)
             for idx, (x1, y1, x2, y2) in enumerate(detections['boxes'].cpu()):
 
                 cls_conf = detections['scores'][idx].cpu()
