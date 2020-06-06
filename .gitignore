@@ -20,3 +20,4 @@ predictions/models_results.csv
 predictions/results_by_model.csv
 datasets/*/data.xlsx
 predictions_old/*
+weigths_old/*

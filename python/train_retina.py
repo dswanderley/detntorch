@@ -233,7 +233,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
     parser.add_argument("--num_epochs", type=int, default=150, help="number of training epochs")
     parser.add_argument("--num_channels", type=int, default=1, help="number of channels in the input images")
-    parser.add_argument("--num_classes", type=int, default=2, help="number of classes (including background)")
+    parser.add_argument("--num_classes", type=int, default=3, help="number of classes (including background)")
     parser.add_argument("--apply_nms", type=bool, default=False, help="apply internal non-maximum suppress during inference")
     parser.add_argument("--backbone", type=str, default="resnet50", help="the network backbone, options: resnet18, resnet34 or resnet50 (default: resnet50)")
     # Evaluation parameters
@@ -294,7 +294,7 @@ if __name__ == "__main__":
     training = Training(model, device, dataset_train, dataset_val,
                         optimizer,
                         logger=writer,
-                        class_names=cls_names[:2],
+                        class_names=cls_names[:n_classes],
                         train_name=train_name,
                         iou_thres=opt.iou_thres,
                         score_thres=opt.score_thres,

@@ -275,7 +275,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_epochs", type=int, default=150, help="size of each image batch")
     parser.add_argument("--model_name", type=str, default="yolov3", help="name of the model definition (used to load the .cfg file)")
     parser.add_argument("--num_anchors", type=int, default=6, help="number of anchors")
-    parser.add_argument("--num_classes", type=int, default=2, help="number of classes")
+    parser.add_argument("--num_classes", type=int, default=3, help="number of classes")
     # Evaluation parameters
     parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
     parser.add_argument("--conf_thres", type=float, default=0.5, help="object confidence threshold")
