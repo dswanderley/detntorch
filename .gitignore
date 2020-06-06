@@ -18,3 +18,4 @@ predictions/*.xlsx
 predictions/models_results.csv
 predictions/results_by_model.csv
 datasets/*/data.xlsx
+weights/Dataset_01/*
