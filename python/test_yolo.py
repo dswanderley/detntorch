@@ -84,6 +84,20 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_
     return precision, recall, AP, f1, ap_class
 
 
+def parse_yolo_name(backbone_name, num_anchors, num_classes):
+    """
+    Get the .cfg filename given the Yolo v3 hyperparameters.
+    """
+    model_name = 'yolov3'
+
+    if 'tiny' in backbone_name:
+        model_name += '-tiny'
+    model_name += '_a' + str(num_anchors)
+    model_name += '_c' + str(num_classes)
+
+    return model_name
+
+
 if __name__ == "__main__":
 
     from terminaltables import AsciiTable
@@ -91,8 +105,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Network parameters
     parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
-    parser.add_argument("--weights_path", type=str, default="../weights/20200512_2122_yolov3_weights.pth.tar", help="path to weights file")
-    parser.add_argument("--model_name", type=str, default="yolov3.cfg", help="newtork model file")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200512_2122_yolov3_weights.pth.tar", help="path to weights file")    
+    parser.add_argument("--model_name", type=str, default="yolov3", help="name of the model definition (used to load the .cfg file)")
+    parser.add_argument("--num_anchors", type=int, default=6, help="number of anchors")
+    parser.add_argument("--num_classes", type=int, default=2, help="number of classes")
     # Evaluation parameters
     parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
     parser.add_argument("--conf_thres", type=float, default=0.01, help="object confidence threshold")
@@ -106,11 +122,11 @@ if __name__ == "__main__":
     class_names = ['background','follicle','ovary']
 
     # Input parameters
-    n_classes = 2
+    n_classes = opt.num_classes
     has_ovary = True if n_classes > 2 else False
     batch_size = opt.batch_size
     weights_path = opt.weights_path
-    network_name = opt.model_name
+    network_name = parse_yolo_name(opt.model_name, opt.num_anchors, n_classes)
     mode_config_path = 'config/'+ network_name
 
     # Get data configuration

@@ -22,13 +22,29 @@ import matplotlib.patches as patches
 from matplotlib.ticker import NullLocator
 
 
+def parse_yolo_name(backbone_name, num_anchors, num_classes):
+    """
+    Get the .cfg filename given the Yolo v3 hyperparameters.
+    """
+    model_name = 'yolov3'
+
+    if 'tiny' in backbone_name:
+        model_name += '-tiny'
+    model_name += '_a' + str(num_anchors)
+    model_name += '_c' + str(num_classes)
+
+    return model_name
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     # Network parameters
     #parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
     parser.add_argument("--weights_path", type=str, default="../weights/20200512_2122_yolov3_weights.pth.tar", help="path to weights file")
-    parser.add_argument("--model_name", type=str, default="yolov3", help="newtork model file")
+    parser.add_argument("--model_name", type=str, default="yolov3", help="name of the model definition (used to load the .cfg file)")
+    parser.add_argument("--num_anchors", type=int, default=6, help="number of anchors")
+    parser.add_argument("--num_classes", type=int, default=2, help="number of classes")
     # Evaluation parameters
     parser.add_argument("--conf_thres", type=float, default=0.8, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
@@ -44,11 +60,12 @@ if __name__ == "__main__":
     bbox_colors = [ colormap[1], colormap[6], colormap[14] ]
 
     # Input parameters
-    batch_size = 1#opt.batch_size
-    n_classes = 2
+    batch_size = 1
+    n_classes = opt.num_classes
     has_ovary = True if n_classes > 2 else False
     weights_path = opt.weights_path
-    mode_config_path = 'config/'+ opt.model_name + '.cfg'
+    network_name = parse_yolo_name(opt.model_name, opt.num_anchors, n_classes)
+    mode_config_path = 'config/'+ network_name + '.cfg'
     # Get network name
     networkname = weights_path.split('/')[-1]
     networkname = networkname.split('.')[0]
