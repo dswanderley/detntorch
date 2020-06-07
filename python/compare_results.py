@@ -106,40 +106,41 @@ for pfile in prediction_files:
             dtn = detect[d]
             if d == 0:
                 im_inference_time = dtn['time']
-            score = dtn['scores'] if 'scores' in dtn else dtn['cls_conf']
-            box_dt = torch.tensor([ float(dtn['x1']), float(dtn['y1']), float(dtn['x2']), float(dtn['y2']) ])
-            box_center = ( (box_dt[0] + box_dt[2]) / 2, (box_dt[1] + box_dt[3]) / 2)
-            best_iou = 0
-            best_gt_id = -1
+            if int(dtn['bb_idx']) > 0:
+                score = dtn['scores'] if 'scores' in dtn else dtn['cls_conf']
+                box_dt = torch.tensor([ float(dtn['x1']), float(dtn['y1']), float(dtn['x2']), float(dtn['y2']) ])
+                box_center = ( (box_dt[0] + box_dt[2]) / 2, (box_dt[1] + box_dt[3]) / 2)
+                best_iou = 0
+                best_gt_id = -1
 
-            # Iterate image GTs
-            for g in range(len(gtruth)):
-                gt = gtruth[g]
-                # Check class to compute IoU if possible
-                if dtn[lbl_key] == gt['class']:                    
-                    box_gt = torch.tensor([ float(gt['x1']),  float(gt['y1']),  float(gt['x2']),  float(gt['y2']) ])
-                    # Calculate IoU
-                    iou = bbox_iou(box_dt.unsqueeze(0), box_gt.unsqueeze(0))
-                    # Store if the is the best
-                    if iou.item() > best_iou:
-                        best_iou = iou.item()
-                        if point_in_box(box_center, box_gt):
-                            best_gt_id = g
-            
-            # Add comparison to data
-            dtn['iou'] = best_iou
-            dtn['gt_idx'] = best_gt_id + 1
-            if best_gt_id < 0:
-                dtn['status'] = 'FP'
-                pred_tp_list.append(0)
-            else:
-                dtn['status'] = 'TP'
-                pred_tp_list.append(1)
-            # Append to be compared
-            gt_id_list.append(best_gt_id)
-            iou_list.append(best_iou)
-            pred_scores_list.append(float(score))
-            pred_lbls_list.append(class_names.index(dtn[lbl_key]))
+                # Iterate image GTs
+                for g in range(len(gtruth)):
+                    gt = gtruth[g]
+                    # Check class to compute IoU if possible
+                    if dtn[lbl_key] == gt['class']:                    
+                        box_gt = torch.tensor([ float(gt['x1']),  float(gt['y1']),  float(gt['x2']),  float(gt['y2']) ])
+                        # Calculate IoU
+                        iou = bbox_iou(box_dt.unsqueeze(0), box_gt.unsqueeze(0))
+                        # Store if the is the best
+                        if iou.item() > best_iou:
+                            best_iou = iou.item()
+                            if point_in_box(box_center, box_gt):
+                                best_gt_id = g
+                
+                # Add comparison to data
+                dtn['iou'] = best_iou
+                dtn['gt_idx'] = best_gt_id + 1
+                if best_gt_id < 0:
+                    dtn['status'] = 'FP'
+                    pred_tp_list.append(0)
+                else:
+                    dtn['status'] = 'TP'
+                    pred_tp_list.append(1)
+                # Append to be compared
+                gt_id_list.append(best_gt_id)
+                iou_list.append(best_iou)
+                pred_scores_list.append(float(score))
+                pred_lbls_list.append(class_names.index(dtn[lbl_key]))
     
         # Check for duplicated (when NMS fail)
         duplicate = []
