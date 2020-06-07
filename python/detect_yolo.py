@@ -57,7 +57,7 @@ if __name__ == "__main__":
     # Bounding-box colors
     cmap = plt.get_cmap("tab20b")
     colors = [cmap(i) for i in np.linspace(0, 1, 20)]
-    bbox_colors = [ colormap[1], colormap[6], colormap[14] ]
+    bbox_colors = [ colors[1], colors[6], colors[14] ]
 
     # Input parameters
     batch_size = 1
