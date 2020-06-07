@@ -41,12 +41,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Network parameters
     #parser.add_argument("--batch_size", type=int, default=4, help="size of each image batch")
-    parser.add_argument("--weights_path", type=str, default="../weights/20200512_2122_yolov3_weights.pth.tar", help="path to weights file")
+    parser.add_argument("--weights_path", type=str, default="../weights/20200606_2252_yolov3_a6_c3_weights.pth.tar", help="path to weights file")
     parser.add_argument("--model_name", type=str, default="yolov3", help="name of the model definition (used to load the .cfg file)")
     parser.add_argument("--num_anchors", type=int, default=6, help="number of anchors")
-    parser.add_argument("--num_classes", type=int, default=2, help="number of classes")
+    parser.add_argument("--num_classes", type=int, default=3, help="number of classes")
     # Evaluation parameters
-    parser.add_argument("--conf_thres", type=float, default=0.8, help="object confidence threshold")
+    parser.add_argument("--conf_thres", type=float, default=0.6, help="object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
 
     opt = parser.parse_args()
