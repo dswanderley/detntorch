@@ -11,6 +11,8 @@ python train_yolo.py --model_name yolov3      --num_anchors 9 --num_classes 3 --
 python train_yolo.py --model_name yolov3      --num_anchors 6 --num_classes 3 --batch_size 6
 python train_yolo.py --model_name yolov3-tiny --num_anchors 6 --num_classes 3 --batch_size 8
 python train_yolo.py --model_name yolov3-tiny --num_anchors 4 --num_classes 3 --batch_size 8
+python train_yolo.py --model_name yolov3-spp     --num_anchors 9 --num_classes 3 --batch_size 6
+python train_yolo.py --model_name yolov3-spp     --num_anchors 6 --num_classes 3 --batch_size 6
 
 pause
 
