@@ -191,7 +191,7 @@ if __name__ == "__main__":
                         bbox={"color":"white", "alpha":.1, "pad": 0}
                     )
         else:
-            table.append([fname, str(img_i + 1), '0',
+            table.append([fname, str(img_i + 1), '0', class_names[0],
                         '', '', '', '', '','',
                         inf_times[img_i]])
                         
