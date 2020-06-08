@@ -30,6 +30,8 @@ def parse_yolo_name(backbone_name, num_anchors, num_classes):
 
     if 'tiny' in backbone_name:
         model_name += '-tiny'
+    elif 'spp' in backbone_name:
+        model_name += '-spp'
     model_name += '_a' + str(num_anchors)
     model_name += '_c' + str(num_classes)
 

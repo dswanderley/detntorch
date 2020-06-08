@@ -21,3 +21,7 @@ predictions/results_by_model.csv
 datasets/*/data.xlsx
 predictions_old/*
 weigths_old/*
+predictions/results_by_model_ov.csv
+predictions/results_by_model_fol.csv
+python/compare_results_ov.py
+python/compare_results_fol.py
