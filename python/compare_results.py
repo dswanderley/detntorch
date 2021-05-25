@@ -159,7 +159,7 @@ for pfile in prediction_files:
             del pred_lbls_list[d]
 
         # Image prediction evaluation
-        precision, recall, AP, f1, ap_class = ap_per_class( np.array(pred_tp_list), 
+        precision_im, recall_im, AP_im, f1_im, ap_class_im = ap_per_class( np.array(pred_tp_list), 
                                                             np.array(pred_scores_list), 
                                                             np.array(pred_lbls_list), 
                                                             gt_lbls_list )
@@ -191,17 +191,17 @@ for pfile in prediction_files:
             'duplicates': duplicate,
             'frr':im_frr,
             'fmr':im_fmr,
-            'precision_mean':precision.mean(),
-            'recall_mean':recall.mean(),
-            'ap_mean':AP.mean(),
-            'f1_mean':f1.mean(),
+            'precision_mean':precision_im.mean(),
+            'recall_mean':recall_im.mean(),
+            'ap_mean':AP_im.mean(),
+            'f1_mean':f1_im.mean(),
             'time': im_inference_time
         }
-        for i in range(len(ap_class)):
-            overall_dict['precision_' + str(i+1)] = precision[i]
-            overall_dict['recall_' + str(i+1)] = recall[i]
-            overall_dict['ap_' + str(i+1)] = AP[i]
-            overall_dict['f1_' + str(i+1)] = f1[i]
+        for i in range(len(ap_class_im)):
+            overall_dict['precision_' + str(i+1)] = precision_im[i]
+            overall_dict['recall_' + str(i+1)] = recall_im[i]
+            overall_dict['ap_' + str(i+1)] = AP_im[i]
+            overall_dict['f1_' + str(i+1)] = f1_im[i]
 
         # Store on a list with all detections of all files
         comparison_items += detect
