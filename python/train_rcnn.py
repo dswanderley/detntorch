@@ -207,7 +207,7 @@ class Training:
             print(AsciiTable(ap_table).table)
             print("mAP: "+ str(AP.mean()))
             print('\n')
-            
+
             # ======================== Save weights ============================ #
             best_loss = avg_loss_train if avg_loss_train <= best_loss else best_loss
             is_best = AP.mean() >= best_ap

@@ -18,7 +18,7 @@ try:
 except:
     from fpn import PyramidFeatures
     from retina_utils.anchors import Anchors, BBoxTransform, ClipBoxes
-    from retina_utils.losses import FocalLoss    
+    from retina_utils.losses import FocalLoss
     from retina_utils.utils import nms
 
 
@@ -145,7 +145,7 @@ class RetinaNet(nn.Module):
         self.freeze_bn()
 
     def __set_weights(self):
-        prior = 0.01  
+        prior = 0.01
         # Set initial weights
         with torch.no_grad():
             for m in self.modules():
@@ -225,14 +225,14 @@ class RetinaNet(nn.Module):
                         # Apply non-maximum suppression
                         anchors_nms_idx = nms(transformed_anchors[i,:,:], scores[i,:,0], 0.5)
                         # Suppress blocks
-                        nms_scores, nms_class = lbl_preds[i, anchors_nms_idx, :].max(dim=1) 
+                        nms_scores, nms_class = lbl_preds[i, anchors_nms_idx, :].max(dim=1)
                         # Define ouput rows
                         pred_boxes.append(transformed_anchors[i, anchors_nms_idx, :])
                         pred_classes.append(nms_class)
                         pred_scores.append(nms_scores)
                     else:
                         # Suppress blocks
-                        _scores, _class = lbl_preds[i, :, :].max(dim=1) 
+                        _scores, _class = lbl_preds[i, :, :].max(dim=1)
                         # Define ouput rows
                         pred_boxes.append(transformed_anchors[i, :, :])
                         pred_classes.append(_class)
@@ -247,7 +247,7 @@ if __name__ == "__main__":
     in_channels = 1
     bs = 2
     w = h = 512
-    training = False
+    training = True
 
     # Create inputs
     imgs = Variable( torch.randn(bs, in_channels, w, h) )

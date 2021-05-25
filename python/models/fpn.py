@@ -141,7 +141,7 @@ class PyramidFeatures(nn.Module):
         self.toplayer1 = nn.Conv2d(num_features, num_features, kernel_size=3, stride=1, padding=1)
         self.toplayer2 = nn.Conv2d(num_features, num_features, kernel_size=3, stride=1, padding=1)
         self.toplayer3 = nn.Conv2d(num_features, num_features, kernel_size=3, stride=1, padding=1)
-       
+
     def forward(self, x):
         # Bottom-up pathway
         c3, c4, c5 = self.backbone(x)
