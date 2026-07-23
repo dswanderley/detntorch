@@ -66,7 +66,7 @@ class OvaryDataset(Dataset):
 
         ldir_im = set(x for x in os.listdir(self.im_dir))
         ldir_gt = set(x for x in os.listdir(self.gt_dir))
-        self.images_name  = [ fname for fname in list(ldir_im.intersection(ldir_gt)) if fname[0] is not '.']
+        self.images_name  = [fname for fname in ldir_im.intersection(ldir_gt) if fname[0] != '.']
 
 
     def __len__(self):

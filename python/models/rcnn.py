@@ -35,16 +35,15 @@ class FasterRCNN(nn.Module):
             self.inconv.add_module("bn0", nn.BatchNorm2d(3))
             self.inconv.add_module("relu", nn.ReLU(inplace=True))
 
-        # Pre-trained model needs to be an identical network
-        if pretrained:
-            self.body = fasterrcnn_resnet50_fpn(pretrained=pretrained, num_classes=91, min_size=min_size)
-            # Reset output
-            if num_classes != 91:
-                in_features = self.body.roi_heads.box_predictor.cls_score.in_features
-                self.body.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-
-        else:
-            self.body = fasterrcnn_resnet50_fpn(pretrained=pretrained, num_classes=num_classes, min_size=min_size)
+        weights = 'DEFAULT' if pretrained else None
+        self.body = fasterrcnn_resnet50_fpn(
+            weights=weights,
+            weights_backbone=None,
+            min_size=min_size,
+        )
+        if num_classes != 91:
+            in_features = self.body.roi_heads.box_predictor.cls_score.in_features
+            self.body.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
 
     def forward(self, x, tgts=None):
@@ -117,7 +116,7 @@ if __name__ == "__main__":
         color = np.array([0, 255, 0])/255.
 
         for bb in bboxes:
-            bounding_box = bb.cpu().detach().numpy().round().astype(np.int)
+            bounding_box = bb.cpu().detach().numpy().round().astype(int)
             img[bounding_box[1], bounding_box[0]:bounding_box[2]] = color
             img[bounding_box[1]:bounding_box[3], bounding_box[0]] = color
 

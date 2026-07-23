@@ -52,7 +52,7 @@ for xy, cl in zip(data.transpose(), kmeans.labels_):
 
 centers = [ [c[0], c[1], c[0]*c[1]] for c in kmeans.cluster_centers_]
 centers = np.array(centers)
-centers = np.sort(centers.view('i8,i8,i8'), order=['f1'], axis=0).view(np.float)
+centers = np.sort(centers.view('i8,i8,i8'), order=['f1'], axis=0).view(float)
 
 # outputs
 print('N_CLUSTERS: ', N_CLUSTERS)

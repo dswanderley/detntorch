@@ -10,7 +10,7 @@ except ImportError:
 import numpy as np
 import numbers
 import types
-import collections
+from collections.abc import Iterable, Sequence
 import warnings
 
 from torchvision.transforms import functional as F
@@ -21,10 +21,10 @@ __all__ = ["Compose", "ToTensor", "ToPILImage", "Normalize", "Resize", "Scale", 
            "ColorJitter", "RandomRotation", "RandomAffine", "Grayscale", "RandomGrayscale", "RandomGrayscale_extra"]
 
 _pil_interpolation_to_str = {
-    Image.NEAREST: 'PIL.Image.NEAREST',
-    Image.BILINEAR: 'PIL.Image.BILINEAR',
-    Image.BICUBIC: 'PIL.Image.BICUBIC',
-    Image.LANCZOS: 'PIL.Image.LANCZOS',
+    Image.Resampling.NEAREST: 'PIL.Image.Resampling.NEAREST',
+    Image.Resampling.BILINEAR: 'PIL.Image.Resampling.BILINEAR',
+    Image.Resampling.BICUBIC: 'PIL.Image.Resampling.BICUBIC',
+    Image.Resampling.LANCZOS: 'PIL.Image.Resampling.LANCZOS',
 }
 
 
@@ -170,8 +170,8 @@ class Resize(object):
             ``PIL.Image.NEAREST``
     """
 
-    def __init__(self, size, interpolation=Image.BILINEAR, interpolation_tg = Image.NEAREST, interpolation_mask = Image.NEAREST):
-        assert isinstance(size, int) or (isinstance(size, collections.Iterable) and len(size) == 2)
+    def __init__(self, size, interpolation=Image.Resampling.BILINEAR, interpolation_tg = Image.Resampling.NEAREST, interpolation_mask = Image.Resampling.NEAREST):
+        assert isinstance(size, int) or (isinstance(size, Iterable) and len(size) == 2)
         self.size = size
         self.interpolation = interpolation
         self.interpolation_tg = interpolation_tg
@@ -268,7 +268,7 @@ class Pad(object):
         assert isinstance(padding, (numbers.Number, tuple))
         assert isinstance(fill, (numbers.Number, str, tuple))
         assert padding_mode in ['constant', 'edge', 'reflect', 'symmetric']
-        if isinstance(padding, collections.Sequence) and len(padding) not in [2, 4]:
+        if isinstance(padding, Sequence) and len(padding) not in [2, 4]:
             raise ValueError("Padding must be an int or a 2, or 4 element tuple, not a " +
                              "{} element tuple".format(len(padding)))
 
@@ -540,7 +540,7 @@ class RandomResizedCrop(object):
     """
 
     def __init__(self, size, scale=(0.08, 1.0), ratio=(3. / 4., 4. / 3.),
-                 interpolation=Image.BILINEAR, interpolation_tg = Image.NEAREST, interpolation_mask = Image.NEAREST):
+                 interpolation=Image.Resampling.BILINEAR, interpolation_tg = Image.Resampling.NEAREST, interpolation_mask = Image.Resampling.NEAREST):
         self.size = (size, size)
         self.interpolation = interpolation
         self.interpolation_tg = interpolation_tg
