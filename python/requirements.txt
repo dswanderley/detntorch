@@ -9,7 +9,7 @@ torchvision==0.28.0
 # Pillow 12.3.0 fixes CVE-2026-54060 (FontFile decompression bomb).
 Pillow>=12.3.0,<13
 
-matplotlib>=3.10,<4
+matplotlib>=3.11.1,<4
 numpy>=2.2,<3
 scikit-image>=0.25,<0.27
 scikit-learn>=1.6,<2
