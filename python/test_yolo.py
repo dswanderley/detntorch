@@ -75,7 +75,7 @@ def evaluate(model, data_loader, iou_thres, conf_thres, nms_thres, device, save_
         recall = np.array([0])
         AP = np.array([0])
         f1 = np.array([0])
-        ap_class = np.array([0], dtype=np.int)
+        ap_class = np.array([0], dtype=int)
     else:
         # Concatenate sample statistics
         true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]

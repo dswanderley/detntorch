@@ -17,20 +17,18 @@ def get_backbone(name, pretrained=True):
     # TODO: More backbones
 
     # loading backbone model
-    if name == 'resnet18':
-        backbone = models.resnet18(pretrained=pretrained)
-    elif name == 'resnet34':
-        backbone = models.resnet34(pretrained=pretrained)
-    elif name == 'resnet50':
-        backbone = models.resnet50(pretrained=pretrained)
-    elif name == 'resnet101':
-        backbone = models.resnet101(pretrained=pretrained)
-    elif name == 'resnext50':
-        backbone = models.resnext50_32x4d(pretrained=pretrained)
-    elif name == 'resnext101':
-        backbone = models.resnext101_32x8d(pretrained=pretrained)
-    else:
-        raise NotImplemented('{} backbone model is not implemented so far.'.format(name))
+    model_names = {
+        'resnet18': 'resnet18',
+        'resnet34': 'resnet34',
+        'resnet50': 'resnet50',
+        'resnet101': 'resnet101',
+        'resnext50': 'resnext50_32x4d',
+        'resnext101': 'resnext101_32x8d',
+    }
+    if name not in model_names:
+        raise NotImplementedError('{} backbone model is not implemented so far.'.format(name))
+    weights = 'DEFAULT' if pretrained else None
+    backbone = models.get_model(model_names[name], weights=weights)
 
     # specifying skip feature and output names
     if name.startswith('resnet18') or name.startswith('resnet34'):

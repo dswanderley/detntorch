@@ -1,27 +1,45 @@
-python/.vscode/
-*.pyc
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Editors and tooling
+.vscode/
+.idea/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local datasets, model artifacts, logs and generated reports
+datasets/**/*.csv
+datasets/**/data.xlsx
+logs/**/events.out.tfevents.*
+logs_old/
+predictions/**/*
+!predictions/predictions.txt
+predictions_old/
+weights/**/*
+!weights/weights.txt
+weigths_old/
+
+# Large binary artifacts and generated images
+*.pth
+*.pth.tar
+*.pt
+*.onnx
 *.tar
+*.tar.gz
 *.png
 *.jpg
-predictions/*/
-datasets/*.csv
-datasets/*/*.csv
-weights/*.csv
-weights/*.xls
-weights/*.xlsx
-logs/*/events.out.tfevents.*
-logs/*/*/events.out.tfevents.*
+*.jpeg
+*.xls
+*.xlsx
 
-logs_old/
-weights/*.log
-weights/*/*
-predictions/*.xlsx
-predictions/models_results.csv
-predictions/results_by_model.csv
-datasets/*/data.xlsx
-predictions_old/*
-weigths_old/*
-predictions/results_by_model_ov.csv
-predictions/results_by_model_fol.csv
+# Local/private experiments
 python/compare_results_ov.py
 python/compare_results_fol.py
+volvo/
